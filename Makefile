@@ -1,22 +1,23 @@
 
-all: cem
+all: cem CEM.pdf view
 
-cem: cem.lhs
-	ghc cem.lhs
+cem: CEM.lhs Main.hs
+	ghc Main.hs -o cem
 
-cem.pdf: cem.lhs annotated.bib
-	pdflatex cem.lhs
-	bibtex paper
-	pdflatex cem.lhs
-	pdflatex cem.lhs
+CEM.pdf: CEM.lhs annotated.bib
+	pdflatex CEM.lhs 
+	bibtex cem 
+	pdflatex CEM.lhs
+	pdflatex CEM.lhs 
 
 clean:
 	rm -f cem *.o *.hi
-	rm -f paper.pdf
-	rm -f paper.aux
-	rm -f paper.log
-	rm -f paper.bbl
-	rm -f paper.blg
+	rm -f CEM.pdf
+	rm -f CEM.aux
+	rm -f CEM.log
+	rm -f CEM.bbl
+	rm -f CEM.blg
+	rm -f CEM.out
 
-view: paper.pdf
-	mupdf paper.pdf
+view: CEM.pdf
+	mupdf CEM.pdf
