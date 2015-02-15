@@ -1,12 +1,12 @@
 
-all: cem CEM.pdf view
+all: cem CEM.pdf 
 
 cem: CEM.lhs Main.hs
 	ghc Main.hs -o cem
 
 CEM.pdf: CEM.lhs annotated.bib
 	pdflatex CEM.lhs 
-	bibtex cem 
+	bibtex CEM
 	pdflatex CEM.lhs
 	pdflatex CEM.lhs 
 
