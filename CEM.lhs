@@ -389,29 +389,31 @@ semantics for call-by-need.
 \begin{figure}
 \begin{align*}
 \tag{Id} \inference
-{\langle \Phi \rangle t \Downarrow \langle \Psi \rangle \lambda x.t'}
-{\langle \Phi, x \mapsto t, \Upsilon \rangle x \Downarrow \langle \Psi, x
-\mapsto \lambda x.t', \Upsilon \rangle \lambda x.t'}
+{\langle \Phi \rangle e \Downarrow \langle \Psi \rangle \lambda x.e'}
+{\langle \Phi, x \mapsto e, \Upsilon \rangle x \Downarrow \langle \Psi, x
+\mapsto \lambda x.e', \Upsilon \rangle \lambda x.e'}
 \end{align*}
 \begin{align*}
 \tag{Abs} \inference 
 {}
-{\langle \Phi \rangle \lambda x . t \Downarrow \langle \Phi \rangle \lambda x.t}
+{\langle \Phi \rangle \lambda x . e \Downarrow \langle \Phi \rangle \lambda x.e}
 \end{align*}
 \begin{align*}
 \tag{App} \inference
-{\langle \Phi \rangle t_l \Downarrow \langle \Psi \rangle \lambda 
-x.t_n \\ \langle \Psi, x' \mapsto t_m \rangle [x'/x]t_n \Downarrow \langle
-\Upsilon \rangle \lambda y.t'}
-{\langle \Phi \rangle t_l \; t_m \Downarrow \langle \Upsilon \rangle \lambda y.t'}
+{\langle \Phi \rangle e_l \Downarrow \langle \Psi \rangle \lambda 
+x.e_n \\ \langle \Psi, x' \mapsto e_m \rangle [x'/x]e_n \Downarrow \langle
+\Upsilon \rangle \lambda y.e'}
+{\langle \Phi \rangle e_l \; e_m \Downarrow \langle \Upsilon \rangle \lambda y.e'}
 \end{align*}
 \caption{Ariola et. al's Operational Semantics}
 \label{fig:cbn}
 \end{figure}
 
+The 
+
 \section{Implementation}
 To those few readers who enjoy thinking in terms of machine code, it may be
-already clear that the $L$ machine lends itself in a very straightforward way to
+already clear that the CEM lends itself in a very straightforward way to
 implementation. Indeed, we specify such an implementation in this section. It is
 such a simple process that we manage to implement the entire native code compiler
 in a single page. 
@@ -457,66 +459,73 @@ type Location = Int
 
 appBB :: Location -> Label -> BasicBlock
 appBB l n = ("App_"++show l, 
-  ["push %rax"   -- Push environment
-  ,"push $"++n]) -- Push argument code
+  ["push %rax"                                      -- Push environment
+  ,"push $"++n])                                    -- Push argument code
 
 varBB :: Location -> Var -> BasicBlock
 varBB l i = ("Var_"++show l,
-  replicate i "movq 16(%rax), %rax" -- Index into environment
-  ++ ["push %rax" -- Push update location
-     ,"push $0"   -- Push update marker
-     ,"movq %rax, %rcx"     -- \
-     ,"movq 8(%rax), %rax"  --  Load new Environment
-     ,"jmp *(%rcx)"])       --  Jump to new code
+  replicate i "movq 16(%rax), %rax"                 -- Index into environment
+  ++ ["push %rax"                                   -- Push update location
+     ,"push $0"                                     -- Push update marker
+     ,"movq %rax, %rcx"                             -- \
+     ,"movq 8(%rax), %rax"                          -- Load new Environment
+     ,"jmp *(%rcx)"])                               -- Jump to new code
 
 checkTermBB :: Location -> BasicBlock
 checkTermBB l = ("CheckTerm_"++show l,
-  ["cmp %rsp, %rbp"             -- Check if stack is empty
-  ,"jne CheckUpdate_"++show l]) -- If not empty, check updates
+  ["cmp %rsp, %rbp"                                 -- Check if stack is empty
+  ,"jne CheckUpdate_"++show l])                     -- If not empty, check updates
 
 termBB :: Location -> BasicBlock
 termBB l = ("Term_"++show l,
-  ["movq $"++show l++", %rdi" 
-  ,"movq $60, %rax"
-  ,"syscall"])
+  ["movq $"++show l++", %rdi"                       -- \
+  ,"movq $60, %rax"                                 -- Exit with label exitcode
+  ,"syscall"])                                      -- / 
 
 checkUpdateBB :: Location -> BasicBlock
 checkUpdateBB l = ("CheckUpdate_"++show l,
-  ["cmpq $0, (%rsp)"      -- Check for update marker
-  ,"jne Take_"++show l])  -- If not udpate, proceed to take
+  ["cmpq $0, (%rsp)"                                -- Check for update marker
+  ,"jne Take_"++show l])                            -- If not udpate, proceed to take
 
 updateBB :: Location -> BasicBlock
 updateBB l = ("Update_"++show l,
-  ["movq 8(%rsp), %rcx"                       -- \
-  ,"movq $CheckTerm_"++show l++", "++"(%rcx)" --  Replace code pointer
-  ,"movq %rax, 8(%rcx)"                       --  Replace env pointer
-  ,"add $16, %rsp"                            --  Pop update 
-  ,"jmp CheckTerm_"++show l])                 --  Continue with new stack
+  ["movq 8(%rsp), %rcx"                             -- \
+  ,"movq $CheckTerm_"++show l++", "++"(%rcx)"       --  Replace code pointer
+  ,"movq %rax, 8(%rcx)"                             --  Replace env pointer
+  ,"add $16, %rsp"                                  --  Pop update 
+  ,"jmp CheckTerm_"++show l])                       --  Continue with new stack
  
 takeBB :: Location -> BasicBlock
 takeBB l = ("Take_"++show l,
-  ["pop (%rbx)"           -- Pop code into free heap cell
-  ,"pop 8(%rbx)"          -- Pop env into free heap cell
-  ,"movq %rax, 16(%rbx)"  -- Point env to free heap cell
-  ,"movq %rbx, %rax"      -- /
-  ,"add $24, %rbx"])      -- Increment free heap cell
+  ["pop (%rbx)"                                     -- Pop code into free heap cell
+  ,"pop 8(%rbx)"                                    -- Pop env into free heap cell
+  ,"movq %rax, 16(%rbx)"                            -- Point env to free heap cell
+  ,"movq %rbx, %rax"                                -- /
+  ,"add $24, %rbx"])                                -- Increment free heap cell
 
 \end{code}
 \caption{Full compiler implementation}
 \label{fig:impl}
 \end{figure*}
 
-\section{Future Improvements and Applications}
+\section{The Good, the Bad, and the Ugly}
+The abstract machine as presented has some surprisingly nice properties, and some
+very bad ones. There is a sense in which the CEM is \emph{lazier} than flat
+environment implementations. Instead of spending time allocating a flat
+environment so that if a closure is entered multiple times variable lookup, our
+implementation does the minimal amount of preparation work.
+
+Of course, this comes with the previously mentioned cost of non-constant
+variable lookup time. This performance wart is both bad and ugly. Whether the
+wart is fatal is a question for future work. 
 
 \section{Conclusion}
 While our implementation will certainly not break any performance records, that
 was not our goal. We hope that the reader is convinced of the elegance of this
-approach to call-by-need, and that our elaboration of shared environments was a
-worthwhile endeavor. We are not aware of any call-by-need implemenations that
+approach to call-by-need, and that our exploitation of shared environments was a
+worthwhile endeavor. We are not aware of any call-by-need implementations that
 are nearly this simple, and that fact, even on its own, in our humble opinion,
-makes this paper worth sharing. We hope the reader agrees that such a simple
-implementation has potential pedagogical value, and perhaps will enable
-interesting abstract interpretations.
+makes this paper worth sharing. 
 
 \end{document}
 
