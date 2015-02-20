@@ -61,36 +61,34 @@
 We present a compiler which compiles call-by-need lambda calculus directly to
 x64 assembly code. The compiler is remarkable primarily for its simplicity,
 which it achieves by implementing a novel abstract machine: the Cactus
-Environment Machine (CEM). By using shared environments ensure work is only
-performed once (a requirement of lazy evaluation), we acheive an implementation
+Environment Machine. By using shared environments ensure bound terms are only
+evaluated once (a requirement of lazy evaluation), we achieve an implementation
 significantly simpler than any existing implementation of the call-by-need
 lambda calculus we are aware of.
 \end{abstract}
 
 \section{Introduction} \label{sec:intro}
-Lazy functional programming languages generally implement call-by-need lambda
-calculus \cite{ariola1995call}. In these implementations, environments are
-implemented \emph{flatly}, binding free variables to locations in the heap. Care
-must be taken to ensure that proper sharing is ensured.  
+Lazy functional programming languages implement call-by-need lambda calculus
+\cite{ariola1995call}. In these implementations, environments are implemented
+\emph{flatly}, binding free variables to locations in the heap. Care must be
+taken to ensure that proper sharing is ensured.  
 
 In this paper, we propose an alternative approach. Using shared environments
 (also called linked environments or linked closures), we can implement the
 sharing required for call-by-need semantics by using a single large shared
 environment as both an environment for every closure, as well as a heap. We
 refer to this structure as a \emph{cactus environment}, and the resulting
-abstract machine as the \emph{cactus environment machine} (CEM).
+abstract machine as the \emph{cactus environment} ($\mathcal{CE}$) machine.
 
-We don't attempt to show that the CEM is better than existing approaches by
-traditional standards, e.g. speed, memory use, etc. Instead, we aim to show only
-that it enables us to build a surprisingly simple native code compiler. To
-emphasize the simplicity of the implemetation, we have written the paper as a
-literate Haskell file, which we encourage the reader to download and tinker with
-from \url{http://github/stelleg/cem-pearl.git}. 
+We don't attempt to show that the $\mathcal{CE}$ is better than existing
+approaches by traditional standards, e.g. speed, memory use, etc. Instead, we
+aim to show only that it enables us to build a surprisingly simple native code
+compiler. Indeed, the entire compiler fits on a single page. 
 
-We have omitted out the pieces of the paper that are not particularly
-interesting or relevant: the parser, the translation to deBruijn indices, and
-the x64 preamble. If the reader is interested in these pieces, they are
-available in the repository linked above.
+We have omitted out the pieces of the implementation that are not novel 
+: the parser, the translation to deBruijn indices, and the x64 preamble. If the
+reader is interested in these pieces, they are available at
+\url{http://github.com/stelleg/cem_pearl}. 
 
 In the spirit of call-by-need, we start with the type of the function we want,
 and build from there as needed.
@@ -103,9 +101,11 @@ type BasicBlock = (Label, [Instr])
 type Label = String
 type Instr = String
 \end{code}
-We opt to use a simple string representation of x64 instructions due to our
-limited use of the instruction set. Recall that basic blocks are sequences of
-instructions with exactly one exit and one entry point. 
+As we can see, our compile function will take a lambda expression, and produce a
+list of basic blocks. Recall that basic blocks are sequences of instructions
+with exactly one exit and one entry point. While we could conceive of a fancier
+mechanism for generating x64, we opt to use a simple string representation of
+x64 instructions due to our limited use of the instruction set.  
 
 \section{Preliminaries}
 
@@ -118,7 +118,7 @@ associative, and lambda bodies extend as far as possible.
 Because our compiler will be operating on lambda calculus with deBruijn indices,
 we define the equivalent syntax for these terms: $$ t ::= \lambda t \; | \; t \;
 t \; | \; i $$ where $i \in \mathbb{N}$ replaces the variable name with an index
-into the environment. We define the corresponding algebraic datatype in Haskell:
+into the environment. We define the corresponding algebraic data type in Haskell:
 \begin{code}
 type Var = Int
 data Expr = Lam Expr
@@ -190,36 +190,37 @@ dereference.
 
 \subsection{Call-By-Need and the Heap}
 
-Because of the benefits of flat environments, they have dominated call-by-need
-implementations \cite{jonesstg, TIM, johnsson1984efficient,
-boquist1997grin}.\footnote{One could also speculate that this was influenced by
-the historical dominance of doing call-by-need evaluation using combinators,
-which take all their free variables as formal parameters, and therefore suit
-flat environments nicely}. Note that for call-by-need languages, one needs to be
-careful when using flat environments.  Because results from bound computations
-have to be shared across closures referencing them, an implementation of
-call-by-need can't copy closures across environments. To illustrate this,
-consider again the example from earlier. If we copied closures, results from
-evaluation of $t_2[\bullet]$ from dereferencing $x$ in $t$ would not be shared
-with the instances of $x$ in $t_1$. This is fine for call-by-name, but to
-implement call by need, we need to ensure sharing.
+Because of the benefits of flat environments listed above, and perhaps some we
+have overlooked, they have dominated call-by-need implementations
+\cite{jonesstg, TIM, johnsson1984efficient, boquist1997grin}.\footnote{One could
+also speculate that this was influenced by the historical dominance of doing
+call-by-need evaluation using combinators, which take all their free variables
+as formal parameters, and therefore suit flat environments nicely}. Note that
+for call-by-need languages, one needs to be careful when using flat
+environments.  Because results from bound computations have to be shared across
+closures referencing them, an implementation of call-by-need can't copy closures
+across environments. To illustrate this, consider again the example from
+earlier. If we copied closures, results from evaluation of $t_2[\bullet]$ from
+dereferencing $x$ in $t$ would not be shared with the instances of $x$ in $t_1$.
+This is fine for call-by-name, but to implement call by need, we need to ensure
+sharing.
 
 The standard approach is to add a heap, which maps addresses to closures
 \cite{jonesstg, TIM, johnsson1984efficient, sestoft}. After this addition, one
 modifies the environments to map variables to addresses in the heap. The last
 step is to add update markers pointing to heap addresses on the stack, to update
 the closures at those locations in the heap with their value once they have been
-evaluated.
+evaluated. 
 
 The particularly astute reader may see where we are headed. In the shared
-environment diagram above, if we updated the $x=t_2[\bullet]$ with
-$t_2[\bullet]$'s corresponding value after it had been entered, we should get
-the sharing of the result between $t$ and $t_2$ without an additional heap.
-Indeed, this is exactly what we now describe and implement.
+environment diagram from the previous section, if we updated the
+$x=t_2[\bullet]$ with $t_2[\bullet]$'s corresponding value after it had been
+entered, we should get the sharing of the result between $t$ and $t_2$ without
+an additional heap. Indeed, this is exactly what we now describe and implement.
 
 \section{Shared Environment Call-By-Need} \label{sec:calc}
 
-We use this section to describe the idea at the heart of the paper.  We show how
+We use this section to describe the idea at the heart of the paper. We show how
 the shared environment approach described earlier can be applied to call by need
 evaluation. We start with a well known abstract machine for evaluating
 call-by-name: the Krivine machine.  Figure~\ref{fig:Krivine} defines the $K$
@@ -234,7 +235,7 @@ environment.
 \tag{State} s &::= \langle c, \sigma \rangle \\
 \tag{Closure} c &::= t [\rho] \\
 \tag{Environment} \rho &::= \bullet \; | \; c \cdot \rho \\
-\tag{Stack} \sigma &::= \square \; | \; \sigma \; c  \\
+\tag{Context} \sigma &::= \square \; | \; \sigma \; c  \\
 \end{align*}
 \textbf{Semantics}
 \begin{align*}
@@ -272,7 +273,7 @@ in Figure~\ref{fig:K'}.
 \tag{Closure} c &::= t [l] \\
 \tag{Heap} \mu &::= \epsilon \; | \; \mu [ l \mapsto \rho ] \\
 \tag{Environment} \rho &::= \bullet \; | \; c \cdot l \\
-\tag{Stack} \sigma &::= \square \; | \; \sigma \; c \\
+\tag{Context} \sigma &::= \square \; | \; \sigma \; c \\
 \tag{Location} l,u,f &\in \mathbb{N}
 \end{align*}
 \textbf{Semantics}
@@ -300,18 +301,18 @@ in Figure~\ref{fig:K'}.
 \label{fig:K'}
 \end{figure*}
 
-Now, we have a heap of environments, which we ensure are shared when extended.
-The $K'$ machine is identical to the $K$ machine, except that it forces this
-sharing of environments. 
+Now, we have a heap of environments, which allows us to ensure that the
+environments are shared when extended.  The $K'$ machine is identical to the $K$
+machine, except that it forces this sharing of environments. 
 
-Now that we have specified explicitly shared environments, we can add the
-necessary machinery to implement full call-by-need semantics. To do this, we add
-similar modifications to those others have added to the Krivine machine to make
-it lazy.  We add update markers so that when a closure is entered, the Var1 rule
-pushes an update marker to the corresponding location onto the stack. Then, when
-the corresponding value is our current closure, it will pop the update marker,
-and replace the closure on the heap with itself. This call-by-need $L$ machine
-is specified in Figure~\ref{fig:L}.
+Given our specified explicitly shared environments, we can add the necessary
+machinery to implement full call-by-need semantics. To do this, we add similar
+modifications to those others have added to the Krivine machine to make it lazy
+\cite{sestoft}.  We add update markers so that when a closure is entered, the
+Var1 rule pushes an update marker to the corresponding location onto the stack.
+Then, when the corresponding value is our current closure, it will pop the
+update marker, and replace the closure on the heap with itself. This
+call-by-need $L$ machine is specified in Figure~\ref{fig:L}.
 
 \begin{figure*}
 \textbf{Syntax}
@@ -320,7 +321,7 @@ is specified in Figure~\ref{fig:L}.
 \tag{Heap} \mu &::= \epsilon \; | \; \mu [ l \mapsto \rho ] \\
 \tag{Environment} \rho &::= \bullet \; | \; c \cdot l \\
 \tag{Value} v &::= \lambda t[l] \\
-\tag{Stack} \sigma &::= \square \; | \; \sigma \; c \;  | \; u:=\sigma \\
+\tag{Context} \sigma &::= \square \; | \; \sigma \; c \;  | \; u:=\sigma \\
 \tag{Location} l,u,f &\in \mathbb{N}
 \end{align*}
 \textbf{Semantics}
@@ -353,18 +354,20 @@ is specified in Figure~\ref{fig:L}.
 \end{figure*}
 
 We can see from the semantics that all that has changed between the $K'$ and the
-$\mathcal{CE}$ machine is the addition of the update marker to the stack, and the
-corresponding Update and Var1 rules. This is contrast to flat environment
-machines that require more complex machinery to ensure proper sharing, such as
-the TIM \cite{TIM}.
+$\mathcal{CE}$ machine is the addition of the update marker to the Context
+(which can be impemented as a normal stack), and the corresponding Update and
+Var1 rules. This is contrast to flat environment machines that require more
+complex machinery to ensure proper sharing, such as the TIM \cite{TIM}.
 
 This is similar to existing lazy variants of the krivine machine, such as that
 defined by Sestoft \cite{sestoft}, except that instead of leaving the
 environment unspecified, and adding a heap of closures, we have forced the
 environment to be shared, and used that shared environment to implement the
-necessary sharing of results. 
+necessary sharing of results.\footnote{In fact, in the code comments of his
+dissertation, Sestoft mentions some sharing of environment, but it is never
+formalized}. 
 
-\section{Pretty Pictures}
+\section{An Example}
 
 While machine semantics are beautiful in their own way, we now turn to pleasant
 visualizations of example executions to get a better intuition for how this
@@ -388,6 +391,11 @@ $(\lambda a.(\lambda b.b \; a) (\lambda c.c
 The free heap location $f$ is left out to save space. Dotted lines denote }
 \label{fig:states}
 \end{figure*}
+
+We can see each rule in effect in our visualization, and how it changes the
+state of the machine, directly. Hopefully this gives the reader some intiution
+for how the machine operates, and how simple its rules are from a mechanical
+point of view. 
 
 \section{Correspondence to The Call-By-Need Lambda Calculus}
 To informally convince ourselves that we have correctly implemented call-by-need
@@ -450,7 +458,7 @@ First, a couple of clarifiying preliminaries. We are targeting x64 GNU
 assembler running on Linux. Any x64 linux machine that has GNU ld should be able
 to run the compiled examples. Recall again that a basic block is a sequence of
 instructions with a single entry and single exit point. We include in our
-datatype a label for each basic block, so that it may be jumped to directly.
+data type a label for each basic block, so that it may be jumped to directly.
 
 We annotate each x64 instruction line with a comment summarizing its purpose. In
 addition, we explain how each basic block maps onto the corresponding rule from
