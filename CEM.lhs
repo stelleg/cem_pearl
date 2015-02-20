@@ -550,16 +550,18 @@ takeBB l = ("Take_"++show l,
 \label{fig:impl}
 \end{figure*}
 
-\section{The Good, the Bad, and the Ugly}
+\section{Discussion}
 The abstract machine as presented has some surprisingly nice properties, and some
 very bad ones. There is a sense in which the CEM is \emph{lazier} than flat
 environment implementations. Instead of spending time allocating a flat
 environment so that if a closure is entered multiple times variable lookup, our
-implementation does the minimal amount of preparation work.
+implementation does the minimal amount of preparation work. Of course, this
+comes with the previously mentioned cost of non-constant variable lookup time. 
 
-Of course, this comes with the previously mentioned cost of non-constant
-variable lookup time. This performance wart is both bad and ugly. Whether the
-wart is fatal is a question for future work. 
+Instead, we hope that this simple implementation could be of value for
+pedagogical purposes. Furthermore, we believe it could make for a good target
+for abstraction thanks to its simplicity, following the approach of Van Horn et al.
+\cite{van2010abstracting}.
 
 \section{Conclusion}
 We hope that the reader is convinced of the elegance of this approach to
