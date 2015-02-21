@@ -1,0 +1,22 @@
+\begin{figure}
+\begin{align*}
+\tag{Id} \inference
+{\langle \Phi \rangle e \Downarrow \langle \Psi \rangle \lambda x.e'}
+{\langle \Phi, x \mapsto e, \Upsilon \rangle x \Downarrow \langle \Psi, x
+\mapsto \lambda x.e', \Upsilon \rangle \lambda x.e'}
+\end{align*}
+\begin{align*}
+\tag{Abs} \inference 
+{}
+{\langle \Phi \rangle \lambda x . e \Downarrow \langle \Phi \rangle \lambda x.e}
+\end{align*}
+\begin{align*}
+\tag{App} \inference
+{\langle \Phi \rangle e_l \Downarrow \langle \Psi \rangle \lambda 
+x.e_n \\ \langle \Psi, x' \mapsto e_m \rangle [x'/x]e_n \Downarrow \langle
+\Upsilon \rangle \lambda y.e'}
+{\langle \Phi \rangle e_l \; e_m \Downarrow \langle \Upsilon \rangle \lambda y.e'}
+\end{align*}
+\caption{Ariola et al.'s Call-By-Need Operational Semantics (Figure 8 of Ref.~\cite{ariola1995call})}
+\label{fig:cbn}
+\end{figure}

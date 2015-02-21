@@ -5,13 +5,15 @@ cem: CEM.lhs Main.hs
 	ghc Main.hs -o cem
 
 CEM.pdf: CEM.lhs annotated.bib
-	pdflatex CEM.lhs 
+	cp -f CEM.lhs CEM.tex
+	pdflatex CEM
 	bibtex CEM
-	pdflatex CEM.lhs
-	pdflatex CEM.lhs 
+	pdflatex CEM
+	pdflatex CEM
 
 clean:
 	rm -f cem *.o *.hi
+	rm -f CEM.tex
 	rm -f CEM.pdf
 	rm -f CEM.aux
 	rm -f CEM.log

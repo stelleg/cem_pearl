@@ -1,0 +1,30 @@
+\begin{figure}
+\textbf{Syntax}
+\begin{align*}
+\tag{State} s &::= \langle c, \sigma \rangle \\
+\tag{Closure} c &::= t [\rho] \\
+\tag{Environment} \rho &::= \bullet \; | \; c \cdot \rho \\
+\tag{Context} \sigma &::= \square \; | \; \sigma \; c  \\
+\end{align*}
+\textbf{Semantics}
+\begin{align*}
+\tag{Lam}
+\langle \lambda t[\rho], \sigma \; c \rangle 
+  &\rightarrow_{K}
+\langle t[c \cdot \rho], \sigma \rangle  \\
+\tag{App}
+\langle t \; t'[\rho], \sigma \rangle
+  &\rightarrow_{K}
+\langle t[\rho], \sigma \; t'[\rho] \rangle \\
+\tag{Var1}
+\langle 0[c \cdot \rho ], \sigma  \rangle
+  &\rightarrow_{K}
+\langle c, \sigma \rangle  \\
+\tag{Var2}
+\langle i[c \cdot \rho], \sigma \rangle
+  &\rightarrow_{K}
+\langle (i-1)[\rho], \sigma \rangle \\
+\end{align*}
+\caption{Syntax and semantics of the call-by-name $K$ machine.}
+\label{fig:Krivine}
+\end{figure}

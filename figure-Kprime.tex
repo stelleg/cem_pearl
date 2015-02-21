@@ -1,0 +1,34 @@
+\begin{figure*}
+\textbf{Syntax}
+\begin{align*}
+\langle c, \sigma, \mu f \rangle &\rightarrow_{K'} \langle c, \sigma, \mu, f \rangle \\
+\tag{Closure} c &::= t [l] \\
+\tag{Heap} \mu &::= \epsilon \; | \; \mu [ l \mapsto \rho ] \\
+\tag{Environment} \rho &::= \bullet \; | \; c \cdot l \\
+\tag{Context} \sigma &::= \square \; | \; \sigma \; c \\
+\tag{Location} l,u,f &\in \mathbb{N}
+\end{align*}
+\textbf{Semantics}
+\begin{align*}
+\tag{Lam}
+\langle \lambda t[l], \sigma \; c, \mu, f \rangle 
+  &\rightarrow_{K'}
+\langle t[f], \sigma, \mu[f \mapsto c \cdot l], f+1 \rangle  \\
+\tag{App}
+\langle t \; t'[l], \sigma, \mu, f \rangle
+  &\rightarrow_{K'}
+\langle t[l], \sigma \; t'[l], \mu, f \rangle \\
+\tag{Var1}
+\langle 0[l], \sigma, \mu, f \rangle
+  &\rightarrow_{K'}
+\langle c, \sigma, \mu, f \rangle 
+\; \textnormal{where} \; c \cdot l' = \mu(l)\\
+\tag{Var2}
+\langle i[l], \sigma, \mu, f \rangle
+  &\rightarrow_{K'}
+\langle (i-1)[l'], \sigma, \mu, f \rangle
+\; \textnormal{where} \; c \cdot l' = \mu(l) \\
+\end{align*}
+\caption{Syntax and semantics of the call-by-name $K'$ machine.}
+\label{fig:K'}
+\end{figure*}
