@@ -1,25 +1,20 @@
 
-all: cem CEM.pdf 
+all: cem.pdf 
 
-cem: CEM.lhs Main.hs
-	ghc Main.hs -o cem
-
-CEM.pdf: CEM.lhs annotated.bib
-	cp -f CEM.lhs CEM.tex
-	pdflatex CEM
-	bibtex CEM
-	pdflatex CEM
-	pdflatex CEM
+cem.pdf: cem.tex annotated.bib
+	pdflatex cem
+	bibtex cem
+	pdflatex cem
+	pdflatex cem
 
 clean:
 	rm -f cem *.o *.hi
-	rm -f CEM.tex
-	rm -f CEM.pdf
-	rm -f CEM.aux
-	rm -f CEM.log
-	rm -f CEM.bbl
-	rm -f CEM.blg
-	rm -f CEM.out
+	rm -f cem.pdf
+	rm -f cem.aux
+	rm -f cem.log
+	rm -f cem.bbl
+	rm -f cem.blg
+	rm -f cem.out
 
-view: CEM.pdf
-	mupdf CEM.pdf
+view: cem.pdf
+	mupdf cem.pdf

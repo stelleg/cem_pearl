@@ -213,7 +213,7 @@ onto the stack, abstractions pull an argument off the stack and move it into the
 environment, and variables enter the closure at their index into the
 environment.
 
-\input{figure-K}
+\input{figures/figure-K}
 
 Note that we have not specified how the environment is represented in the $K$
 machine. To move towards our final goal of sharing via environment structure,
@@ -221,7 +221,7 @@ let's force the environment to be shared, by creating a heap of environment
 cells, and extending each cell manually. This gives us the $K'$ machine,
 Figure~\ref{fig:K'}.
 
-\input{figure-Kprime}
+\input{figures/figure-Kprime}
 
 Now, we have a heap of environments, which ensures that the
 environments are shared when extended.  The $K'$ machine is identical to the $K$
@@ -239,7 +239,7 @@ Then, when the corresponding value is our current closure, it will pop the
 update marker, and replace the closure on the heap with itself. This
 call-by-need $L$ machine is specified in Figure~\ref{fig:L}.
 
-\input{figure-CE}
+\input{figures/figure-CE}
 
 [CONSISTENCY! IS IT $L$ or $\mathcal{CE}$? I vote for $L$]
 
@@ -265,7 +265,7 @@ machine operates. Figure~\ref{fig:states} shows a portion
 of the execution trace during the evaluation of $(\lambda a.(\lambda b.b \; a)
 (\lambda c.c \; a)) ((\lambda i.i) (\lambda j.j))$. 
 
-\input{figure-states}
+\input{figures/figure-states}
 
 We can see each rule in effect in our visualization, and how it changes the
 state of the machine, directly. Hopefully this gives the reader some intiution
@@ -280,7 +280,7 @@ semantics, we turn to the work of
 Ariola et al.\cite{ariola1995call}, which specified an operational semantics for
 call-by-need lambda calculus, Figure~\ref{fig:cbn}.
 
-\input{figure-cbn}
+\input{figures/figure-cbn}
 
 Case-wise induction on $\rightarrow_{N}$ gives us an ordering to the closures
 in the cactus environment. This is similar to the ordering from Lemma 8.1 of
@@ -335,7 +335,7 @@ update the marker and continue without changing the current closure. If it is
 not an update marker, it is an argument closure, so we pop to extend our current
 environment with it. 
 
-\input{figure-impl}
+\input{figures/figure-impl}
 
 \section{Discussion}
 The abstract machine as presented has some surprisingly nice properties, and some
