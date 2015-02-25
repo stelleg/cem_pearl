@@ -12,27 +12,27 @@
 \begin{align*}
 \tag{Upd}
 \langle v, u := \sigma, \mu[u \mapsto c \cdot l], f \rangle 
-  &\rightarrow_{\mathcal{CE}} 
+  &\rightarrow_{L} 
 \langle v, \sigma, \mu[u \mapsto v \cdot l], f \rangle  \\
 \tag{Lam}
 \langle \lambda t[l], \sigma \; c, \mu, f \rangle 
-  &\rightarrow_{\mathcal{CE}}
+  &\rightarrow_{L}
 \langle t[f], \sigma, \mu[f \mapsto c \cdot l], f+1 \rangle  \\
 \tag{App}
 \langle t \; t'[l], \sigma, \mu, f \rangle
-  &\rightarrow_{\mathcal{CE}}
+  &\rightarrow_{L}
 \langle t[l], \sigma \; t'[l], \mu, f \rangle \\
 \tag{Var1}
 \langle 0[l], \sigma, \mu, f \rangle
-  &\rightarrow_{\mathcal{CE}}
+  &\rightarrow_{L}
 \langle c, \sigma, \mu, f \rangle 
 \; \textnormal{where} \; c \cdot l' = \mu(l)\\
 \tag{Var2}
 \langle i[l], \sigma, \mu, f \rangle
-  &\rightarrow_{\mathcal{CE}}
+  &\rightarrow_{L}
 \langle (i-1)[l'], \sigma, \mu, f \rangle
 \; \textnormal{where} \; c \cdot l' = \mu(l) \\
 \end{align*}
-\caption{Syntax and semantics of the call-by-need $\mathcal{CE}$ machine.}
+\caption{Syntax and semantics of the call-by-need $L$ machine.}
 \label{fig:L}
 \end{figure*}

@@ -66,16 +66,11 @@
   once (a requirement of lazy evaluation), we achieve an
   implementation that is much simpler than any implementation of the
   call-by-need lambda calculus of which we are aware.  The semantics
-  of the shared environment are defined by a new abstract machine, the Cactus
-  Environment $\mathcal{CE}$ Machine.  Beyond simplicity, the $\mathcal{CE}$
-  approach enables explorations of the tradeoffs between flat and shared 
-  environment structures for lazy languages.
+  of the shared environment are defined by a new abstract machine, based
+  Krivine's call by name abstract machine.  Beyond simplicity, the
+  our approach enables explorations of the tradeoffs between flat and
+  shared environment structures for lazy languages.
 
-%  may lead to implementation efficiencies by exploiting tradeoffs
-  %between flat and hierarchical storage structures.  
-
-%The compiler is remarkable primarily for its simplicity,
-%which it achieves by implementing 
 \end{abstract}
 
 \section{Introduction} \label{sec:intro}
@@ -84,61 +79,67 @@ Lazy functional programming languages implement call-by-need lambda calculus
 \cite{ariola1995call}. In these implementations, environments are \emph{flat},
 binding free variables to locations in the heap and enforcing proper sharing.
 Here, we propose an alternative approach, which implements the sharing required
-for call-by-need semantics with a single
-% large 
-shared environment, which serves both as the environment for every
-closure and as the heap. We refer to this structure as a \emph{cactus
-environment} and the resulting abstract machine as the cactus
-environment ($\mathcal{CE}$) machine.
+for call-by-need semantics with a single shared environment, which serves both
+as the environment for every closure and as the heap. We refer to this
+structure as a \emph{cactus environment} and the resulting abstract machine as
+the cactus environment ($\mathcal{CE}$) machine.
 
 In this pearl, we focus only on the issue of implementation simplicity, leaving
 careful performance measurements for future work, although we believe that our
-approach could also lead to efficiency improvements.
-%We do not attempt to show that the $\mathcal{CE}$ is better than existing
-%approaches by traditional standards, such as speed, memory use,
-%etc. Instead, we
-Using $\mathcal{CE}$, we present a native code compiler that is so
-simple that its essentail components fit on a single page, as shown in
-Figure~\ref{fig:impl}.\footnote{For brevity we omit well-understood components---the
-parser, the translation to deBruijn indices, and the x64 preamble;
-the full compiler is available at \url{http://github.com/stelleg/cem_pearl}.}
-The \texttt{compile} function takes as input a lambda term and produces as
-output a list of x64 basic blocks. Since we use only a small subset of the
-available x64 instructions, a simple string representation suffices.
+approach could also lead to efficiency improvements. Indeed, this frees us to
+focus on only pure lambda calculus, a subset of languages which by itself, does
+not imply good performance for real world programs.
+
+Using $\mathcal{CE}$, we present a native code compiler written in Idris that is
+so simple that its essential components fit on a single page, as shown in
+Figure~\ref{fig:impl}.\footnote{For brevity we omit well-understood
+components---the parser, the translation to deBruijn indices, and the x64
+preamble; the full compiler is available at
+\url{http://github.com/stelleg/cem_pearl}.} The \texttt{compile} function takes
+as input a lambda term and produces as output a list of x64 basic blocks. Since
+we use only a small subset of the available x64 instructions, a simple string
+representation suffices.
 
 \begin{code}
-compile :: ClosedExpr -> [BasicBlock]
-type BasicBlock = (Label, [Instr])
-type Label = String
-type Instr = String
+compile : Closed Expr -> [BasicBlock]
+data BasicBlock : Type where
+  BB : Label -> List Instr -> BasicBlock
+Label : Type
+Label = String
+Instr : Type
+Instr = String 
 \end{code}
 
 \section{Preliminaries}
 We assume familiarity with lambda calculus, environments, and closures.
-We adopt standard Barendregt syntax [TODO add citation] for lambda terms,
-$$ e ::=  \lambda x.\ e \; | \; e \;  e \; | \;
-x $$, applications are left
-associative, and lambda bodies extend as far as possible. 
+We adopt standard Barendregt syntax \cite{barendregt1984lambda} for lambda
+terms, $$ e ::=  \lambda x.\ e \; | \; e \;  e \; | \; x $$, applications are
+left associative, and lambda bodies extend as far as possible. 
 
 Internally the compiler operates on lambda terms with deBruijn indices,
-so we add the synatx $$ t ::= \lambda t \; | \; t \;
+so we add the syntax $$ t ::= \lambda t \; | \; t \;
 t \; | \; i $$ where $i \in \mathbb{N}$ replaces the variable name with an index
-into the environment. In the implementation, we use GHC extensions datakinds to
-allow us to restrict our expressions to closed expressions. To do so we follow
-the notation of Idris, creating a unary natural number type 
+to its binding lambda. In the implementation, we use Idris's \texttt{Fin} type
+along with it's \texttt{Nat} type to allow us to define our type
+\texttt{Closed}. We paramatarize \texttt{Expr} on a \texttt{Nat} that constrains
+the maximum deBruijn index allowed. \texttt{Lam} increases that index by one,
+while \texttt{Var} takes a parameter which can only index into that depth, using
+Idris's \texttt{Fin n} type, which defines the finite naturals less than
+\texttt{n}. 
 
 \begin{code}
-data N = Z | S N
+data Expr : Nat -> Type where
+  Var : Fin n -> Expr n
+  Lam : Expr (S n) -> Expr n 
+  App : Expr n -> Expr n -> Expr n
 
-data Fin (n :: N) where
-  FZ :: Fin (S Z)
-  FS :: Fin n -> Fin (S n)
-
-data Expr (n :: N)  where
-  Lam :: Expr (S n) -> Expr n 
-  Var :: Fin s -> 
-  App :: Expr n -> Expr n -> Expr n
+Closed : (Nat -> Type) -> Type
+Closed expr = expr 0
 \end{code}
+
+With these definitions, we get the type for our \texttt{compile} function, which
+we want only to take \texttt{Closed Expr}, and generate a list of
+\texttt{BasicBlock}s.
 
 Instead of binding named variables, here a variable indexes the depth of its
 binding lambda with a natural number. For example $\lambda t.\lambda f.t$ in
@@ -150,8 +151,8 @@ In mechanical evaluation of expressions, it would be too inefficient to perform
 explicit substitution. To solve this, the standard approach uses
 closures~\cite{landin1964mechanical, curien1991abstract, jonesstg, biernacka2007concrete}.
 Closures combine an expression with an environment, binding the free
-variables in the expression to other closures.  [TODO: Do we do this
-in our implementation?]
+variables in the expression to other closures.  We follow this approach, but
+with a novel twist. 
 
 \section{Environment Representation} \label{sec:env}
 
@@ -166,15 +167,13 @@ x.(\lambda y.t) (\lambda z.t_1)) t_2$$ Assuming the term $t$ has both $x$ and
 $y$ as free variables, we must evaluate it in the environment binding both $x$
 and $y$.  Similarly, assuming $t'$ contains both $z$ and $x$ as free variables,
 we must evaluate it in an environment containing bindings for both $x$ and $z$.
-Thus, we can represent the closures for $t$ and $t_1$ as
-$$t[x=t_2[\bullet], y=c]$$ and $$t_1[x=t_2[\bullet], z=c_1]$$ respectively. In a
-flat representation, space is allocated separately for each
-environment, and each closure contains
-an explicit record of all of its free variables. Because of the nested scope of
-the given term, $x$ is bound to the identical closure in each
-environment and can also be represented by a shared, linked
-structure, shown in the following
-diagram:
+Thus, we can represent the closures for $t$ and $t_1$ as $$t[x=t_2[\bullet],
+y=c]$$ and $$t_1[x=t_2[\bullet], z=c_1]$$ respectively. In a flat
+representation, space is allocated separately for each environment, and each
+closure contains an explicit record of all of its free variables. Because of the
+nested scope of the given term, $x$ is bound to the identical closure in each
+environment and can also be represented by a shared, linked structure, shown in
+the following diagram:
 
 \begin{center}
 \begin{tikzpicture}[ 
@@ -200,14 +199,12 @@ link structure must be traversed.
 
 \subsection{Call-By-Need and the Heap}
 
-%Because of the benefits of flat environments we listed above, and perhaps others we
-%have overlooked, they 
 Historically, flat environments have dominated call-by-need implementations
 \cite{jonesstg, TIM, johnsson1984efficient,
 boquist1997grin}. We speculate that this is in part because call-by-need
-evaluation was historically implemented with combinators, which take all their
-free variables as formal parameters, and therefore suit flat environments well.
-Note that for call-by-need languages, one must be careful when using flat
+evaluation has historically been implemented with combinators, which take all
+their free variables as formal parameters, and therefore suit flat environments
+well. Note that for call-by-need languages, one must be careful when using flat
 environments.  Because results from bound computations have to be shared across
 closures referencing them, an implementation of call-by-need cannot copy
 closures across environments. To illustrate this, consider again the earlier
@@ -221,13 +218,10 @@ The standard approach is to add a heap, which maps addresses to closures
 modify the environments to map variables to addresses in the heap. The final
 step adds update markers pointing to heap addresses on the stack, to update
 the closures at those locations in the heap with their value once they have been
-evaluated.  Reconsidering
-%The reader may see where we are headed: 
-the shared
-environment diagram from the preceding section, if we updated the
-$x=t_2[\bullet]$ with $t_2[\bullet]$'s corresponding value after it was
-entered, the result would be shared between $t$ and $t_2$ without
-an additional heap. This is what we now describe and implement.
+evaluated.  Reconsidering the shared environment diagram from the preceding
+section, if we updated the $x=t_2[\bullet]$ with $t_2[\bullet]$'s corresponding
+value after it was entered, the result would be shared between $t$ and $t_2$
+without an additional heap. This is what we now describe and implement.
 
 \section{Shared Environment Call-By-Need} \label{sec:calc}
 
@@ -253,43 +247,37 @@ Now, we have a heap of environments, which ensures that the
 environments are shared when extended.  The $K'$ machine is identical to the $K$
 machine, except that it forces this sharing of environments. 
 
-[TO DO: SHOULD REPHRASE THE FOLLOWING SENTENCE--"Given our ... environments"... is awkward; "given" is a vague word]
-Given our specified explicitly shared environments, we can add the necessary
-machinery to implement full call-by-need semantics.
-[CHECK THIS REWRITE:] To do so, we modify the $K'$ machine to make it lazy
-in much the same way as Sestoft modified the Krivine machine~\cite{sestoft}.
-%To do this, we add similar modifications to those others have added to the Krivine machine to make it lazy \cite{sestoft}.
-We add update markers so that when a closure is entered, the
-Var1 rule pushes an update marker to the corresponding location onto the stack.
-Then, when the corresponding value is our current closure, it will pop the
-update marker, and replace the closure on the heap with itself. This
+Our explicitly shared environments enable us to add the necessary
+machinery to implement full call-by-need semantics. We modify the $K'$ machine
+to make it lazy in much the same way as Sestoft modified the Krivine
+machine~\cite{sestoft}. We add update markers so that when a closure is entered,
+the Var1 rule pushes an update marker to the corresponding location onto the
+stack.  Then, when the corresponding value is our current closure, it will pop
+the update marker, and replace the closure on the heap with itself. This
 call-by-need $L$ machine is specified in Figure~\ref{fig:L}.
 
 \input{figures/figure-CE}
 
-[TO DO: CONSISTENCY! IS IT $L$ or $\mathcal{CE}$? I vote for $L$]
-
 We see from the semantics that all that has changed between the $K'$ and the
-$\mathcal{CE}$ machine is the addition of the update marker to the Context
+$L$ machine is the addition of the update marker to the Context
 (which can be implemented as a normal stack), and the corresponding Update and
 Var1 rules. This is in contrast to flat environment machines, such as the TIM~\cite{TIM}, which require more
 complex machinery to ensure proper sharing.
 
-This [TO DO: WHAT?] is similar to existing lazy variants of the Krivine machine, such as that
-defined by Sestoft \cite{sestoft}, except that instead of leaving the
-environment unspecified, and adding a heap of closures, we have forced the
-environment to be shared, and used that shared environment to implement the
-necessary sharing of results.\footnote{In fact, in the code comments of his
-dissertation, Sestoft mentions possible environment sharing, but it is never
-formalized.} 
+Our $L$ machine is similar to existing lazy variants of the Krivine machine,
+such as that defined by Sestoft \cite{sestoft}, except that instead of leaving
+the environment structure unspecified, and adding a heap of closures, we have
+forced the environment to be shared, and used that shared environment to
+implement the necessary sharing of results.\footnote{In fact, in the code
+comments of his dissertation, Sestoft mentions possible environment sharing, but
+it is never formalized.} 
 
 \section{An Example}
 
-We now turn to 
-visualizations of example executions to provide intuition for how the $L$
-machine operates. Figure~\ref{fig:states} shows a portion
-of the execution trace during the evaluation of $(\lambda a.(\lambda b.b \; a)
-(\lambda c.c \; a)) ((\lambda i.i) (\lambda j.j))$. 
+We now turn to visualizations of example executions to provide intuition for how
+the $L$ machine operates. Figure~\ref{fig:states} shows a portion of the
+execution trace during the evaluation of $(\lambda a.(\lambda b.b \; a) (\lambda
+c.c \; a)) ((\lambda i.i) (\lambda j.j))$. 
 
 \input{figures/figure-states}
 
@@ -310,33 +298,23 @@ call-by-need lambda calculus, Figure~\ref{fig:cbn}.
 
 \input{figures/figure-cbn}
 
-Case-wise induction on $\rightarrow_{N}$ gives an ordering to the closures
-in the cactus environment. This is similar to the ordering from Lemma 8.1 of
-Ref.~\cite{ariola1995call}.
-Using this ordering, we define the function $flatten$, which takes any $(c, \mu)$
-and flattens it accordingly. It does so by mapping any $(c, \mu)$ to a $\langle
-\Phi \rangle t$, with the necessary variable hygiene. With this function, along
-with structural induction on term size, it is not hard to show that
-$\rightarrow_{\mathcal{CE}}$ bisimulates $\downarrow$.
+Case-wise induction on $\rightarrow_{N}$ gives an ordering to the closures in
+the cactus environment. This is similar to the ordering from Lemma 8.1 of
+Ref.~\cite{ariola1995call}.  Using this ordering, we define the function
+$flatten$, which takes any $(c, \mu)$ and flattens it accordingly. It does so by
+mapping any $(c, \mu)$ to a $\langle \Phi \rangle t$, with the necessary
+variable hygiene. With this function, along with structural induction on term
+size, it is not hard to show that $\rightarrow_{L}$ bisimulates $\downarrow$.
 
-%It is worth noting the similarity between these semantics for pedagogical
-%purposes. 
-Ariola et al.'s semantics throws out environment structure because
-it doesn't need to keep it. Similarly the abstract machines derived from the
-semantics (e.g., \cite{garcia2009lazy}) are forced to search for variables in the
+Ariola et al.'s semantics throws out environment structure because it doesn't
+need to keep it. Similarly the abstract machines derived from the semantics
+(e.g., \cite{garcia2009lazy}) are forced to search for variables in the
 environment---deBruijn indices are not an option. In contrast, our
-machine retains that
-structure in the cactus environment, which allows the use of deBruijn
-indices and a straighforward low-level
-implementation (next section).
+machine retains that structure in the cactus environment, which allows the use
+of deBruijn indices and a straighforward low-level implementation (next
+section).
 
 \section{Implementation}\label{sec:impl}
-
-% we already said this in the intro.
-% To those readers who enjoy thinking in terms of machine code, it is
-% already clear that the $\mathcal{CE}$ machine lends itself
-% straightforwardly to implementation. Indeed, our
-% entire native code compiler fits in a single page. 
 
 First, some preliminaries. We target the x64 GNU assembler running on
 Linux. Any x64 linux machine that has GNU ld should be able to run the
@@ -367,29 +345,28 @@ environment with it.
 \input{figures/figure-impl}
 
 \section{Discussion}
-[TODO: Deal with the ???]
 The abstract machine as presented has some surprisingly nice properties and some
-weaknesses. There is a sense in which the CEM ???? is \emph{lazier} than flat
+weaknesses. There is a sense in which the $L$ machine is \emph{lazier} than flat
 environment implementations. Instead of spending time allocating a flat
-environment so that if a closure is entered multiple times ???? variable lookup, our
-implementation does the minimal amount of preparation work. Of course, this
-comes with the previously mentioned cost of non-constant variable lookup time. 
+environment to optimize variable lookup, our implementation does the minimal
+amount of preparation work. Of course, this comes with the previously mentioned
+cost of non-constant variable lookup time. 
 
-Instead????, we hope that this simple implementation could be of 
-pedagogical value. Furthermore, we believe it could make for a good target
-for abstraction thanks to its simplicity, following the approach of Van Horn et al.
-\cite{van2010abstracting}. [????What does it mean to be a target for abstraction? Explain.]
+We hope that this simple implementation could be of pedagogical value.
+Furthermore, we believe it could make for a good target for abstraction thanks
+to its simplicity, following the approach of Van Horn et
+al\cite{van2010abstracting}. For example, its straightforward heap structure
+could be amenable to abstraction, allowing for easier analysis of static heap
+properties.
 
 \section{Conclusion and Future Work}
 We hope that the reader is convinced of the elegance of this approach to implementing
 call-by-need, and that this use of shared environments can lead to
 improved future implementations. We are not aware of any call-by-need
 implementations that are as simple as the one described here.
-%this simple, and so end with a quote from Walt Whitman: "Simplicity is the glory
-%of expression".
-Beyond simplicity and elegance, however, 
-we are actively exploring compile-time optimizations to make this abstract machine
-practically usable for lazy language implementation. [ANYTHING ELSE?]
+Beyond simplicity and elegance, however, we are actively exploring compile-time
+optimizations to make this abstract machine practically usable for lazy language
+implementation. [ANYTHING ELSE?]
 
 % We recommend abbrvnat bibliography style.
 \bibliographystyle{abbrvnat}
