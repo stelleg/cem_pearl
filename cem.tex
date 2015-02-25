@@ -80,35 +80,33 @@ Lazy functional programming languages implement call-by-need lambda calculus
 binding free variables to locations in the heap and enforcing proper sharing.
 Here, we propose an alternative approach, which implements the sharing required
 for call-by-need semantics with a single shared environment, which serves both
-as the environment for every closure and as the heap. We refer to this
-structure as a \emph{cactus environment} and the resulting abstract machine as
-the cactus environment ($\mathcal{CE}$) machine.
+as the environment for every closure and as the heap. 
 
 In this pearl, we focus only on the issue of implementation simplicity, leaving
 careful performance measurements for future work, although we believe that our
-approach could also lead to efficiency improvements. Indeed, this frees us to
-focus on only pure lambda calculus, a subset of languages which by itself, does
-not imply good performance for real world programs.
+approach could also lead to efficiency improvements. This frees us to focus on
+only pure lambda calculus, and not worry about efficient register allocation and
+primitive operations. 
 
-Using $\mathcal{CE}$, we present a native code compiler written in Idris that is
-so simple that its essential components fit on a single page, as shown in
-Figure~\ref{fig:impl}.\footnote{For brevity we omit well-understood
-components---the parser, the translation to deBruijn indices, and the x64
-preamble; the full compiler is available at
-\url{http://github.com/stelleg/cem_pearl}.} The \texttt{compile} function takes
-as input a lambda term and produces as output a list of x64 basic blocks. Since
-we use only a small subset of the available x64 instructions, a simple string
-representation suffices.
+The core of the paper is our modified variant of a Krivine machine, seen in
+Figure~\ref{fig:L}. Using this abstract machine, we present a x64 native code
+compiler written in Haskell that is so simple that its essential components fit
+on a single page, as shown in Figure~\ref{fig:impl}.\footnote{For brevity we
+omit well-understood components---the parser, the translation to deBruijn
+indices, and the x64 preamble; the full compiler is available at
+\url{http://github.com/stelleg/cem_pearl}.} 
 
 \begin{code}
-compile : Closed Expr -> [BasicBlock]
-data BasicBlock : Type where
-  BB : Label -> List Instr -> BasicBlock
-Label : Type
-Label = String
-Instr : Type
-Instr = String 
+compile :: Closed Expr -> [BasicBlock]
+data BasicBlock = BB Label [Instr]
 \end{code}
+
+The \texttt{compile} function takes as input a lambda term and produces as
+output a list of x64 basic blocks. Recall that a basic block consists is a
+sequence of instructions with a single entry and exit point. Since we use only a
+small subset of the available x64 instructions, a simple string representation
+suffices. We spend the rest of the paper preparing the reader for understanding
+this function.
 
 \section{Preliminaries}
 We assume familiarity with lambda calculus, environments, and closures.
@@ -128,12 +126,12 @@ Idris's \texttt{Fin n} type, which defines the finite naturals less than
 \texttt{n}. 
 
 \begin{code}
-data Expr : Nat -> Type where
+data Expr (n :: Nat) where
   Var : Fin n -> Expr n
   Lam : Expr (S n) -> Expr n 
   App : Expr n -> Expr n -> Expr n
 
-Closed : (Nat -> Type) -> Type
+Closed :: (Nat -> Type) -> Type
 Closed expr = expr 0
 \end{code}
 
@@ -282,47 +280,19 @@ c.c \; a)) ((\lambda i.i) (\lambda j.j))$.
 \input{figures/figure-states}
 
 We can see each rule in effect in our visualization, and how it changes the
-state of the machine, directly. Hopefully this gives the reader some intiution
-for how the machine operates, and how simple its rules are from a mechanical
-point of view. 
-
-[THIS IS NOT ENOUGH. You can't expect the reader to follow the diagrams
-without any guidance. Include a narrative explanation of the whole figure here. You have enough
-space for the figure caption on this page.]
-
-\section{Correspondence to Call-By-Need Lambda Calculus}
-To convince ourselves that the call-by-need
-semantics are correctly implemented, we turn to the work of
-Ariola et al.\cite{ariola1995call}, which specified an operational semantics for
-call-by-need lambda calculus, Figure~\ref{fig:cbn}.
-
-\input{figures/figure-cbn}
-
-Case-wise induction on $\rightarrow_{N}$ gives an ordering to the closures in
-the cactus environment. This is similar to the ordering from Lemma 8.1 of
-Ref.~\cite{ariola1995call}.  Using this ordering, we define the function
-$flatten$, which takes any $(c, \mu)$ and flattens it accordingly. It does so by
-mapping any $(c, \mu)$ to a $\langle \Phi \rangle t$, with the necessary
-variable hygiene. With this function, along with structural induction on term
-size, it is not hard to show that $\rightarrow_{L}$ bisimulates $\downarrow$.
-
-Ariola et al.'s semantics throws out environment structure because it doesn't
-need to keep it. Similarly the abstract machines derived from the semantics
-(e.g., \cite{garcia2009lazy}) are forced to search for variables in the
-environment---deBruijn indices are not an option. In contrast, our
-machine retains that structure in the cactus environment, which allows the use
-of deBruijn indices and a straighforward low-level implementation (next
-section).
+state of the machine, directly. This should give the reader some intiution for
+how the machine operates, and how simple its rules are from a mechanical point
+of view. 
 
 \section{Implementation}\label{sec:impl}
 
 First, some preliminaries. We target the x64 GNU assembler running on
-Linux. Any x64 linux machine that has GNU ld should be able to run the
-compiled examples.  We include in the data type a label for each basic
-block so it can be jumped to directly, and we annotate each x64
-instruction line with a comment summarizing its purpose.  We also
-explain the simple mapping between each basic block and the
-corresponding rule from the abstract machine specification.
+Linux. Any x64 linux machine that has GNU \texttt{as} and GNU \texttt{ld} should
+be able to run the compiled examples.  We include in the data type a label for
+each basic block so it can be jumped to directly, and we annotate each x64
+instruction line with a comment summarizing its purpose.  We also explain the
+simple mapping between each basic block and the corresponding rule from the
+abstract machine specification.
 
 The compile function takes a deBruijn indexed lambda term and
 generates a list of basic blocks of x64 assembly code. In the case of the Var1
@@ -332,41 +302,51 @@ to that location. The App rule is the simplest: it consists of two instructions
 that push the location of the argument term along with the current environment
 pointer onto the stack. The Lam and Update rules are a little more complicated.
 Recall that there is no rule in which we have a lambda as our current term, and
-an empty stack. That is so, because that is the condition for termination. Thus, we
+an empty stack, because that is the condition for termination. Thus, we
 must add a check to see if the stack is empty (\texttt{checkTermBB}), and terminate if it
-is (\texttt{termBB}). If it is not, then we check (\texttt{checkUpdateBB})
-to see if it is an update marker (which
-we have designated to be the \texttt{NULL} pointer or 0, as there cannot be a valid code
-pointer to that location), and if it is,
-update the marker and continue without changing the current closure. If it is
-not an update marker, it is an argument closure, so we pop to extend our current
-environment with it. 
+is (\texttt{termBB}). If it is not, then we check (\texttt{checkUpdateBB}) to
+see if the code is NULL (update marker) and if it is, update the marker and
+continue with the current closure. If it is not an update marker, it is an
+argument closure, so we pop to extend our current environment with it and
+continue into the body of the current lambda.
 
 \input{figures/figure-impl}
 
 \section{Discussion}
-The abstract machine as presented has some surprisingly nice properties and some
-weaknesses. There is a sense in which the $L$ machine is \emph{lazier} than flat
-environment implementations. Instead of spending time allocating a flat
-environment to optimize variable lookup, our implementation does the minimal
-amount of preparation work. Of course, this comes with the previously mentioned
-cost of non-constant variable lookup time. 
+The $L$ machine has one primary strength: $\beta$ reduction, $(\lambda x.b) e
+\rightarrow b[x/e]$, is performed in constant time, a property we don't believe
+any other implementation can claim in general, due to construction of flat
+environments.
 
-We hope that this simple implementation could be of pedagogical value.
+There is a sense in which the $L$ machine is \emph{lazier} than flat environment
+implementations. Instead of spending time allocating a flat environment to
+optimize variable lookup, our implementation does the minimal amount of
+preparation work. This approach is a trade-off, as it comes with the previously
+mentioned cost of non-constant variable lookup time. 
+
+\section{Conclusion and Future Work}
+We claim that this simple implementation has some pedagogical value. The
+combination of the simple heap structure with the straightforward instructions
+gives an elegant and easy to understand mapping between evaluation to weak head
+normal form and modern hardware.
+
 Furthermore, we believe it could make for a good target for abstraction thanks
 to its simplicity, following the approach of Van Horn et
 al\cite{van2010abstracting}. For example, its straightforward heap structure
 could be amenable to abstraction, allowing for easier analysis of static heap
 properties.
 
-\section{Conclusion and Future Work}
-We hope that the reader is convinced of the elegance of this approach to implementing
-call-by-need, and that this use of shared environments can lead to
-improved future implementations. We are not aware of any call-by-need
-implementations that are as simple as the one described here.
 Beyond simplicity and elegance, however, we are actively exploring compile-time
 optimizations to make this abstract machine practically usable for lazy language
-implementation. [ANYTHING ELSE?]
+implementation. Given a more efficient code generator, we believe it could make
+for a good target for parallel implementations due to its lightweight closures
+(every closure consists of 2 machine words).
+
+We are confident that the reader is convinced of the elegance of this approach
+to implementing call-by-need, and claim that this use of shared environments
+could lead to improved future implementations. We are not aware of any
+call-by-need implementations that are as simple as the one described here.
+
 
 % We recommend abbrvnat bibliography style.
 \bibliographystyle{abbrvnat}
