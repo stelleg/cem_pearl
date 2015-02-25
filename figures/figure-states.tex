@@ -11,6 +11,11 @@
 \caption{An example sequence of machine states during the evaluation of the term
 $(\lambda a.(\lambda b.b \; a) (\lambda c.c
 \; a)) ((\lambda i.i) (\lambda j.j))$. Order is left to right, top to bottom.
-The free heap location $f$ is left out to save space. Dotted lines denote }
+The free heap location $f$ is left out to save space. Dotted lines denote
+the pointer for the closure's environment at a cell, and solid lines denote the
+environment continuation. For example, in the first state, the environment
+defined at location 3 corresponds to $c = a \cdot a = (\lambda i.i) \lambda j.j \cdot
+\bullet$ in the $K$ machine's environment definition. We see the update rule in
+effect when }
 \label{fig:states}
 \end{figure*}

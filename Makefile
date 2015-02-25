@@ -1,7 +1,7 @@
 
 all: cem.pdf 
 
-cem.pdf: cem.tex annotated.bib
+cem.pdf: cem.tex annotated.bib figures/*
 	pdflatex cem
 	bibtex cem
 	pdflatex cem
