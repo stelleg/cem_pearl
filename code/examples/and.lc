@@ -1,0 +1,5 @@
+{
+  true = λt.λf.t
+  false = λt.λf.f
+  and = λa.λb.((a b) false)
+} ((and true) false)
