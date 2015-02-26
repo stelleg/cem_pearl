@@ -15,7 +15,14 @@ The free heap location $f$ is left out to save space. Dotted lines denote
 the pointer for the closure's environment at a cell, and solid lines denote the
 environment continuation. For example, in the first state, the environment
 defined at location 3 corresponds to $c = a \cdot a = (\lambda i.i) \lambda j.j \cdot
-\bullet$ in the $K$ machine's environment definition. We see the update rule in
-effect when }
+\bullet$ in the $K$ machine's environment definition.  We see the App rule in
+action in the transition from the first state to the second, which simple pushes
+the argument term with the current environment onto the stack. The Lam rule is
+expressed in the transition between the second and third states, where an
+argument is popped and put in a fresh heap location. We see the update rule in
+effect in a number of transitions, but most usefully in the transition from the
+fifth to the sixth state, where $a=(\lambda i.i) \lambda j.j$ gets updated with
+$\lambda j.j$. The Var rule transitions the third state to the fourth, where we
+enter the closure $\lambda j.j[0]$.}
 \label{fig:states}
 \end{figure*}

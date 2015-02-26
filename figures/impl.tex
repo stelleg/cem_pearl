@@ -1,0 +1,70 @@
+\begin{figure*}
+\begin{code}
+compileProgram = compile
+
+compile :: Term n -> [BasicBlock]
+compile e = let l = label e in case e of
+  Var i -> [varBB l i]
+  Lam b -> BB l []
+         : checkTermBB l
+         : termBB l
+         : checkUpdateBB l
+         : updateBB l
+         : takeBB l
+         : compile b
+  App m n -> appBB l (label n) : compile m ++ compile n
+
+appBB :: Label -> Label -> BasicBlock
+appBB l n = BB l
+  ["push %rax"                                     -- Push environment
+  ,"push $"++n]                                    -- Push argument code
+
+varBB :: Label -> Fin n -> BasicBlock
+varBB l i = BB l $
+  replicate (toInt i) "movq 16(%rax), %rax"        -- Index into environment
+  ++ ["push %rax"                                  -- Push update location
+     ,"push $0"                                    -- Push update marker
+     ,"movq %rax, %rcx"                            -- \
+     ,"movq 8(%rax), %rax"                         -- Load new Environment
+     ,"jmp *(%rcx)"]                               -- Jump to new code
+
+checkTermBB :: Label -> BasicBlock
+checkTermBB l = BB ("CheckTerm_"++l)
+  ["cmp %rsp, %rbp"                                -- Check if stack is empty
+  ,"jne CheckUpdate_"++ l]                         -- If not empty, check updates
+
+termBB :: Label -> BasicBlock
+termBB l = BB ("Term_"++ l)
+  ["movq $str"++l++", %rsi"                        -- \
+  ,"movq $len"++l++", %rdx"                        --  Print lambda term
+  ,"movq $1, %rax"                                 --  |
+  ,"syscall"                                       -- /
+  ,"movq $0, %rdi"                                 -- \
+  ,"movq $60, %rax"                                --  Exit
+  ,"syscall"]                                      -- / 
+
+checkUpdateBB :: Label -> BasicBlock
+checkUpdateBB l = BB ("CheckUpdate_"++ l)
+  ["cmpq $0, (%rsp)"                               -- Check for update marker
+  ,"jne Take_"++ l]                                -- If not update, proceed to take
+
+updateBB :: Label -> BasicBlock
+updateBB l = BB ("Update_"++ l)
+  ["movq 8(%rsp), %rcx"                            -- \
+  ,"movq $CheckTerm_"++ l ++", (%rcx)"             --  Replace code pointer
+  ,"movq %rax, 8(%rcx)"                            --  Replace env pointer
+  ,"add $16, %rsp"                                 --  Pop update 
+  ,"jmp CheckTerm_"++ l]                           --  Continue with new stack
+ 
+takeBB :: Label -> BasicBlock
+takeBB l = BB ("Take_"++ l)
+  ["pop (%rbx)"                                    -- Pop code into free heap cell
+  ,"pop 8(%rbx)"                                   -- Pop env into free heap cell
+  ,"movq %rax, 16(%rbx)"                           -- Point env to free heap cell
+  ,"movq %rbx, %rax"                               -- /
+  ,"add $24, %rbx"]                                -- Increment free heap cell
+
+\end{code}
+\caption{Full compiler implementation}
+\label{fig:impl}
+\end{figure*}

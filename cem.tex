@@ -32,7 +32,7 @@
   columns=flexible,
   basicstyle=\small\ttfamily,
   showstringspaces=false,
-  morecomment=[l]\%,
+  morecomment=[l]\%
 }
 \lstnewenvironment{code}{}{}
 
@@ -56,7 +56,7 @@
 \maketitle
 
 \begin{abstract}
-  Existing machines for lazy evaluation use a \emph{flat}
+  Existing implementations of lazy evaluation use a \emph{flat}
   representation of environments, storing the terms associated with
   free variables in an array.  Combined with a heap, this structure
   supports the shared intermediate results required by lazy
@@ -67,9 +67,9 @@
   implementation that is much simpler than any implementation of the
   call-by-need lambda calculus of which we are aware.  The semantics
   of the shared environment are defined by a new abstract machine, based
-  Krivine's call by name abstract machine.  Beyond simplicity, the
-  our approach enables explorations of the tradeoffs between flat and
-  shared environment structures for lazy languages.
+  lazy variants of Krivine's call by name abstract machine.  Beyond simplicity,
+  the our approach enables explorations of the tradeoffs between flat and shared
+  environment structures for lazy languages.
 
 \end{abstract}
 
@@ -88,7 +88,7 @@ approach could also lead to efficiency improvements. This frees us to focus on
 only pure lambda calculus, and not worry about efficient register allocation and
 primitive operations. 
 
-The core of the paper is our modified variant of a Krivine machine, seen in
+The core of the paper is a novel lazy Krivine machine, seen in
 Figure~\ref{fig:L}. Using this abstract machine, we present a x64 native code
 compiler written in Haskell that is so simple that its essential components fit
 on a single page, as shown in Figure~\ref{fig:impl}.\footnote{For brevity we
@@ -97,16 +97,18 @@ indices, and the x64 preamble; the full compiler is available at
 \url{http://github.com/stelleg/cem_pearl}.} 
 
 \begin{code}
-compile :: Closed Expr -> [BasicBlock]
+compileProgram :: ClosedTerm -> [BasicBlock]
 data BasicBlock = BB Label [Instr]
+type Label = String
+type Instr = String
 \end{code}
 
 The \texttt{compile} function takes as input a lambda term and produces as
 output a list of x64 basic blocks. Recall that a basic block consists is a
 sequence of instructions with a single entry and exit point. Since we use only a
 small subset of the available x64 instructions, a simple string representation
-suffices. We spend the rest of the paper preparing the reader for understanding
-this function.
+suffices. We spend the rest of the paper preparing essentially building the
+prerequisites to undersatnd this function.
 
 \section{Preliminaries}
 We assume familiarity with lambda calculus, environments, and closures.
@@ -114,29 +116,32 @@ We adopt standard Barendregt syntax \cite{barendregt1984lambda} for lambda
 terms, $$ e ::=  \lambda x.\ e \; | \; e \;  e \; | \; x $$, applications are
 left associative, and lambda bodies extend as far as possible. 
 
-Internally the compiler operates on lambda terms with deBruijn indices,
-so we add the syntax $$ t ::= \lambda t \; | \; t \;
-t \; | \; i $$ where $i \in \mathbb{N}$ replaces the variable name with an index
-to its binding lambda. In the implementation, we use Idris's \texttt{Fin} type
-along with it's \texttt{Nat} type to allow us to define our type
-\texttt{Closed}. We paramatarize \texttt{Expr} on a \texttt{Nat} that constrains
-the maximum deBruijn index allowed. \texttt{Lam} increases that index by one,
-while \texttt{Var} takes a parameter which can only index into that depth, using
-Idris's \texttt{Fin n} type, which defines the finite naturals less than
-\texttt{n}. 
+Internally the compiler operates on lambda terms with deBruijn indices, so we
+add the syntax $$ t ::= \lambda t \; | \; t \; t \; | \; i $$ where $i \in
+\mathbb{N}$ replaces the variable name with an index to its binding lambda. To
+ensure that our program is closed, we first implement the standard unary natural
+number type \texttt{N} and a type representing the set of natural numbers up to
+\texttt{n}, \texttt{Fin n}. We then parameterize \texttt{Term} on an \texttt{N}
+that constrains the maximum number of free variables. \texttt{Lam} increases
+that index by one, while \texttt{Var} takes a parameter which can only index
+into that depth, using our \texttt{Fin n} type.
 
 \begin{code}
-data Expr (n :: Nat) where
-  Var : Fin n -> Expr n
-  Lam : Expr (S n) -> Expr n 
-  App : Expr n -> Expr n -> Expr n
+data N = Z | S N
+data Fin n where
+  FZ :: Fin (S k)
+  FS :: Fin k -> Fin (S k)
 
-Closed :: (Nat -> Type) -> Type
-Closed expr = expr 0
+data Term n where
+  Lam :: Term (S n) -> Term n
+  Var :: Fin n -> Term n 
+  App :: Term n -> Term n -> Term n
+
+type ClosedTerm = Term Z
 \end{code}
 
 With these definitions, we get the type for our \texttt{compile} function, which
-we want only to take \texttt{Closed Expr}, and generate a list of
+we want only to take \texttt{ClosedTerm}, and generate a list of
 \texttt{BasicBlock}s.
 
 Instead of binding named variables, here a variable indexes the depth of its
@@ -145,12 +150,12 @@ standard notation becomes $\lambda\lambda1$ in lambda calculus with deBruijn
 indices.  Examples are easier to write, read, and understand in standard lambda
 calculus with named variables, and we will do so.
 
-In mechanical evaluation of expressions, it would be too inefficient to perform
+In mechanical evaluation of terms, it would be too inefficient to perform
 explicit substitution. To solve this, the standard approach uses
-closures~\cite{landin1964mechanical, curien1991abstract, jonesstg, biernacka2007concrete}.
-Closures combine an expression with an environment, binding the free
-variables in the expression to other closures.  We follow this approach, but
-with a novel twist. 
+closures~\cite{landin1964mechanical, curien1991abstract, jonesstg,
+biernacka2007concrete}. Closures combine an term with an environment, binding
+the free variables in the term to other closures. We follow this
+approach, but with a novel twist. 
 
 \section{Environment Representation} \label{sec:env}
 
@@ -185,7 +190,7 @@ the following diagram:
 \end{center}
 In this scheme, each environment is represented by a linked list, with
 the binding of $x$ shared between them. This simple example
-illustrates a shared, linked environment ~\cite{appel1988optimizing}
+illustrates a shared, linked environment~\cite{appel1988optimizing}
 and dates back to Landin's SECD machine~\cite{landin1964mechanical}.
 
 The strengths and weaknesses of each approach are well known.  With a flat
@@ -227,11 +232,12 @@ Here we describe the key idea of our approach, showing how
 the shared environment described earlier can be applied to call-by-need
 evaluation. We start with a well-known abstract machine for evaluating
 call-by-name, the Krivine machine $K$, Figure~\ref{fig:Krivine}.
-The mechanics are simple: applications push their argument onto the stack,
-abstractions pull an argument off the stack and move it into the environment,
-and variables enter the closure at their index into the environment.
+The mechanics are simple: applications push their argument onto the stack (also
+known as a Context; we will use these interchangeably), abstractions pull
+an argument off the stack and move it into the environment, and variables enter
+the closure at their index into the environment.
 
-\input{figures/figure-K}
+\input{figures/K}
 
 Note that we have not specified how the environment is represented in the $K$
 machine. To move towards the goal of sharing via environment structure,
@@ -239,7 +245,7 @@ we force the environment to be shared by creating a heap of environment
 cells, and then extending each cell manually. This produces the $K'$ machine,
 Figure~\ref{fig:K'}.
 
-\input{figures/figure-Kprime}
+\input{figures/Kprime}
 
 Now, we have a heap of environments, which ensures that the
 environments are shared when extended.  The $K'$ machine is identical to the $K$
@@ -254,13 +260,13 @@ stack.  Then, when the corresponding value is our current closure, it will pop
 the update marker, and replace the closure on the heap with itself. This
 call-by-need $L$ machine is specified in Figure~\ref{fig:L}.
 
-\input{figures/figure-CE}
+\input{figures/L}
 
 We see from the semantics that all that has changed between the $K'$ and the
 $L$ machine is the addition of the update marker to the Context
 (which can be implemented as a normal stack), and the corresponding Update and
-Var1 rules. This is in contrast to flat environment machines, such as the TIM~\cite{TIM}, which require more
-complex machinery to ensure proper sharing.
+Var1 rules. This is in contrast to flat environment machines, such as the
+TIM~\cite{TIM}, which require more complex machinery to ensure proper sharing.
 
 Our $L$ machine is similar to existing lazy variants of the Krivine machine,
 such as that defined by Sestoft \cite{sestoft}, except that instead of leaving
@@ -274,15 +280,13 @@ it is never formalized.}
 
 We now turn to visualizations of example executions to provide intuition for how
 the $L$ machine operates. Figure~\ref{fig:states} shows a portion of the
-execution trace during the evaluation of $(\lambda a.(\lambda b.b \; a) (\lambda
-c.c \; a)) ((\lambda i.i) (\lambda j.j))$. 
-
-\input{figures/figure-states}
-
+execution trace during the evaluation of 
+$$(\lambda a.(\lambda b.b \; a) (\lambda c.c \; a)) ((\lambda i.i) (\lambda j.j))$$. 
+\input{figures/states}
 We can see each rule in effect in our visualization, and how it changes the
 state of the machine, directly. This should give the reader some intiution for
 how the machine operates, and how simple its rules are from a mechanical point
-of view. 
+of view. See the caption for a detailed description of state transitions. 
 
 \section{Implementation}\label{sec:impl}
 
@@ -296,39 +300,48 @@ abstract machine specification.
 
 The compile function takes a deBruijn indexed lambda term and
 generates a list of basic blocks of x64 assembly code. In the case of the Var1
-and Var2 rules, they are combined into a single basic block, which traverses the
-environment linked list until it reaches a closure, then pushes an update marker
-to that location. The App rule is the simplest: it consists of two instructions
-that push the location of the argument term along with the current environment
-pointer onto the stack. The Lam and Update rules are a little more complicated.
-Recall that there is no rule in which we have a lambda as our current term, and
-an empty stack, because that is the condition for termination. Thus, we
-must add a check to see if the stack is empty (\texttt{checkTermBB}), and terminate if it
-is (\texttt{termBB}). If it is not, then we check (\texttt{checkUpdateBB}) to
-see if the code is NULL (update marker) and if it is, update the marker and
-continue with the current closure. If it is not an update marker, it is an
-argument closure, so we pop to extend our current environment with it and
-continue into the body of the current lambda.
+and Var2 rules, they are combined into a single basic block, \texttt{varBB},
+which traverses the environment linked list until it reaches a closure, then
+pushes an update marker to that location. The App rule is the simplest: it
+consists of two instructions that push the location of the argument term along
+with the current environment pointer onto the stack. The Lam and Update rules
+are a little more complicated.  Recall that there is no rule in which we have a
+lambda as our current term, and an empty stack, because that is the condition
+for termination. Thus, we must add a check to see if the stack is empty
+(\texttt{checkTermBB}), and terminate if it is (\texttt{termBB}). If it is not,
+then we check (\texttt{checkUpdateBB}) to see if the code is NULL (update
+marker) and if it is, update the marker and continue with the current closure.
+If it is not an update marker, it is an argument closure, so we pop to extend
+our current environment with it and continue into the body of the current
+lambda.
 
-\input{figures/figure-impl}
+\input{figures/impl}
 
 \section{Discussion}
 The $L$ machine has one primary strength: $\beta$ reduction, $(\lambda x.b) e
 \rightarrow b[x/e]$, is performed in constant time, a property we don't believe
-any other implementation can claim in general, due to construction of flat
-environments.
+any other call-by-need implementation can claim in general, due to construction
+of flat environments.
 
-There is a sense in which the $L$ machine is \emph{lazier} than flat environment
-implementations. Instead of spending time allocating a flat environment to
-optimize variable lookup, our implementation does the minimal amount of
-preparation work. This approach is a trade-off, as it comes with the previously
-mentioned cost of non-constant variable lookup time. 
+There is also a sense in which the $L$ machine is \emph{lazier} than flat
+environment implementations. Instead of spending time allocating a flat
+environment to optimize variable lookup, our implementation does the minimal
+amount of preparation work. This approach is a trade-off, as it comes with the
+previously mentioned cost of non-constant variable lookup time. It seems likely
+that an ideal implementation will combine the two techniques. 
+
+There are also many known improvements that can be directly applied to the $L$
+machine, as it is an implementation of a lazy Krivine machine. In particular,
+Friedman et al.'s work on improving the lazy Krivine machine by collapsing
+update markers (among other things) should be directly applicable \cite{lkm}.
+Indeed, one can see the need for this in Figure~\ref{fig:states}, where multiple
+update markers are pushed, and their locations are updated to the same value.
 
 \section{Conclusion and Future Work}
-We claim that this simple implementation has some pedagogical value. The
-combination of the simple heap structure with the straightforward instructions
-gives an elegant and easy to understand mapping between evaluation to weak head
-normal form and modern hardware.
+We claim that this simple implementation has pedagogical value. The combination
+of the simple heap structure with the straightforward instructions gives an
+elegant and easy to understand mapping between call-by-need evaluation and
+modern hardware.
 
 Furthermore, we believe it could make for a good target for abstraction thanks
 to its simplicity, following the approach of Van Horn et
@@ -344,9 +357,7 @@ for a good target for parallel implementations due to its lightweight closures
 
 We are confident that the reader is convinced of the elegance of this approach
 to implementing call-by-need, and claim that this use of shared environments
-could lead to improved future implementations. We are not aware of any
-call-by-need implementations that are as simple as the one described here.
-
+could lead to improved future implementations. 
 
 % We recommend abbrvnat bibliography style.
 \bibliographystyle{abbrvnat}

@@ -40,6 +40,8 @@ assembleData e = let l = label e in case e of
       [".ascii \"" ++ show e ++ "\\n\""
       ,"len" ++ l ++ " = . - " ++ "str" ++ l]
 
+-- Need to remove duplicate labels, which ends up being a very simple common
+-- subexpression elimination.
 cse :: [BasicBlock] -> [BasicBlock]
 cse bs = foldr replace [] bs where
   replace b@(BB l _) bs = if elem b bs then BB "" ["jmp "++l] : bs else b:bs
@@ -54,7 +56,7 @@ compile e = let l = label e in case e of
          : updateBB l
          : takeBB l
          : compile b
-  App m n -> appBB l (label n) : compile m ++ compile n where
+  App m n -> appBB l (label n) : compile m ++ compile n
 
 appBB :: Label -> Label -> BasicBlock
 appBB l n = BB l
@@ -106,6 +108,7 @@ takeBB l = BB ("Take_"++ l)
   ,"movq %rbx, %rax"                                -- /
   ,"add $24, %rbx"]                                 -- Increment free heap cell
 
+data N = Z | S N
 data Fin n where
   FZ :: Fin (S k)
   FS :: Fin k -> Fin (S k)
@@ -113,5 +116,3 @@ data Fin n where
 toInt :: Fin n -> Int
 toInt FZ = 0
 toInt (FS n) = 1 + toInt n
-
-data N = Z | S N
