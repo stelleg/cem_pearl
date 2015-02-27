@@ -64,7 +64,7 @@
   call-by-need lambda calculus directly to x64 assembly code.  By
   using shared environments to ensure bound terms are evaluated only
   once (a requirement of lazy evaluation), we achieve an
-  implementation that is much simpler than any implementation of the
+  implementation simpler than any implementation of the
   call-by-need lambda calculus of which we are aware.  The semantics
   of the shared environment are defined by a new abstract machine, based
   lazy variants of Krivine's call by name abstract machine.  Beyond simplicity,
@@ -85,11 +85,11 @@ as the environment for every closure and as the heap.
 In this pearl, we focus only on the issue of implementation simplicity, leaving
 careful performance measurements for future work, although we believe that our
 approach could also lead to efficiency improvements. This frees us to focus on
-only pure lambda calculus, and not worry about efficient register allocation and
-primitive operations. 
+lambda calculus, and not worry about efficient implementation of machine
+literals and primitive operations. 
 
 The core of the paper is a novel lazy Krivine machine, seen in
-Figure~\ref{fig:L}. Using this abstract machine, we present a x64 native code
+Figure~\ref{fig:L}. Using this abstract machine, we present an x64 native code
 compiler written in Haskell that is so simple that its essential components fit
 on a single page, as shown in Figure~\ref{fig:impl}.\footnote{For brevity we
 omit well-understood components---the parser, the translation to deBruijn
@@ -103,17 +103,17 @@ type Label = String
 type Instr = String
 \end{code}
 
-The \texttt{compile} function takes as input a lambda term and produces as
-output a list of x64 basic blocks. Recall that a basic block consists is a
-sequence of instructions with a single entry and exit point. Since we use only a
-small subset of the available x64 instructions, a simple string representation
-suffices. We spend the rest of the paper preparing essentially building the
-prerequisites to undersatnd this function.
+The \texttt{compileProgram} function takes as input a closed lambda term and
+produces as output a list of x64 basic blocks. Recall that a basic block
+consists is a sequence of instructions with a single entry and exit point.
+Since we use only a small subset of the available x64 instructions, a simple
+string representation suffices. The rest of the paper builds the prerequisites
+to understand this function.
 
 \section{Preliminaries}
 We assume familiarity with lambda calculus, environments, and closures.
 We adopt standard Barendregt syntax \cite{barendregt1984lambda} for lambda
-terms, $$ e ::=  \lambda x.\ e \; | \; e \;  e \; | \; x $$, applications are
+terms, $$ t ::=  \lambda x.t \; | \; t \;  t \; | \; x $$, applications are
 left associative, and lambda bodies extend as far as possible. 
 
 Internally the compiler operates on lambda terms with deBruijn indices, so we
@@ -140,9 +140,9 @@ data Term n where
 type ClosedTerm = Term Z
 \end{code}
 
-With these definitions, we get the type for our \texttt{compile} function, which
-we want only to take \texttt{ClosedTerm}, and generate a list of
-\texttt{BasicBlock}s.
+With these definitions, we complete the type for our \texttt{compileProgram}
+function, which we want only to take \texttt{ClosedTerm}, and generate a list
+of \texttt{BasicBlock}s.
 
 Instead of binding named variables, here a variable indexes the depth of its
 binding lambda with a natural number. For example $\lambda t.\lambda f.t$ in
@@ -203,8 +203,8 @@ link structure must be traversed.
 \subsection{Call-By-Need and the Heap}
 
 Historically, flat environments have dominated call-by-need implementations
-\cite{jonesstg, TIM, johnsson1984efficient,
-boquist1997grin}. We speculate that this is in part because call-by-need
+\cite{jonesstg, TIM, johnsson1984efficient, boquist1997grin,
+diehl2000abstract}. We speculate that this is in part because call-by-need
 evaluation has historically been implemented with combinators, which take all
 their free variables as formal parameters, and therefore suit flat environments
 well. Note that for call-by-need languages, one must be careful when using flat
@@ -232,10 +232,9 @@ Here we describe the key idea of our approach, showing how
 the shared environment described earlier can be applied to call-by-need
 evaluation. We start with a well-known abstract machine for evaluating
 call-by-name, the Krivine machine $K$, Figure~\ref{fig:Krivine}.
-The mechanics are simple: applications push their argument onto the stack (also
-known as a Context; we will use these interchangeably), abstractions pull
-an argument off the stack and move it into the environment, and variables enter
-the closure at their index into the environment.
+The mechanics are simple: applications push their argument onto the stack,
+abstractions pull an argument off the stack and move it into the environment,
+and variables enter the closure at their index into the environment.
 
 \input{figures/K}
 
@@ -263,10 +262,10 @@ call-by-need $L$ machine is specified in Figure~\ref{fig:L}.
 \input{figures/L}
 
 We see from the semantics that all that has changed between the $K'$ and the
-$L$ machine is the addition of the update marker to the Context
-(which can be implemented as a normal stack), and the corresponding Update and
-Var1 rules. This is in contrast to flat environment machines, such as the
-TIM~\cite{TIM}, which require more complex machinery to ensure proper sharing.
+$L$ machine is the addition of the update marker to the Stack 
+, and the corresponding Update and Var1 rules. This is in contrast to flat
+environment machines, such as the TIM~\cite{TIM}, which require more complex
+machinery to ensure proper sharing.
 
 Our $L$ machine is similar to existing lazy variants of the Krivine machine,
 such as that defined by Sestoft \cite{sestoft}, except that instead of leaving
@@ -274,7 +273,7 @@ the environment structure unspecified, and adding a heap of closures, we have
 forced the environment to be shared, and used that shared environment to
 implement the necessary sharing of results.\footnote{In fact, in the code
 comments of his dissertation, Sestoft mentions possible environment sharing, but
-it is never formalized.} 
+it is never formalized \cite{sestoft91analysis}.} 
 
 \section{An Example}
 
@@ -284,21 +283,21 @@ execution trace during the evaluation of
 $$(\lambda a.(\lambda b.b \; a) (\lambda c.c \; a)) ((\lambda i.i) (\lambda j.j))$$. 
 \input{figures/states}
 We can see each rule in effect in our visualization, and how it changes the
-state of the machine, directly. This should give the reader some intiution for
+state of the machine, directly. This should give the reader some intuition for
 how the machine operates, and how simple its rules are from a mechanical point
 of view. See the caption for a detailed description of state transitions. 
 
 \section{Implementation}\label{sec:impl}
 
 First, some preliminaries. We target the x64 GNU assembler running on
-Linux. Any x64 linux machine that has GNU \texttt{as} and GNU \texttt{ld} should
+Linux. Any x64 Linux machine with GNU \texttt{as} and GNU \texttt{ld} should
 be able to run the compiled examples.  We include in the data type a label for
 each basic block so it can be jumped to directly, and we annotate each x64
 instruction line with a comment summarizing its purpose.  We also explain the
 simple mapping between each basic block and the corresponding rule from the
 abstract machine specification.
 
-The compile function takes a deBruijn indexed lambda term and
+The \texttt{compile} function takes a deBruijn indexed lambda term and
 generates a list of basic blocks of x64 assembly code. In the case of the Var1
 and Var2 rules, they are combined into a single basic block, \texttt{varBB},
 which traverses the environment linked list until it reaches a closure, then
@@ -340,24 +339,20 @@ update markers are pushed, and their locations are updated to the same value.
 \section{Conclusion and Future Work}
 We claim that this simple implementation has pedagogical value. The combination
 of the simple heap structure with the straightforward instructions gives an
-elegant and easy to understand mapping between call-by-need evaluation and
+elegant and easy-to-understand mapping between call-by-need evaluation and
 modern hardware.
 
-Furthermore, we believe it could make for a good target for abstraction thanks
-to its simplicity, following the approach of Van Horn et
-al\cite{van2010abstracting}. For example, its straightforward heap structure
+Furthermore, we believe the $L$ machine could be a good target for abstraction
+thanks to its simplicity, following the approach of Van Horn et
+al.\cite{van2010abstracting}. For example, its straightforward heap structure
 could be amenable to abstraction, allowing for easier analysis of static heap
 properties.
 
 Beyond simplicity and elegance, however, we are actively exploring compile-time
 optimizations to make this abstract machine practically usable for lazy language
-implementation. Given a more efficient code generator, we believe it could make
-for a good target for parallel implementations due to its lightweight closures
-(every closure consists of 2 machine words).
-
-We are confident that the reader is convinced of the elegance of this approach
-to implementing call-by-need, and claim that this use of shared environments
-could lead to improved future implementations. 
+implementation. Given a more efficient code generator, we believe it could be a
+good target for parallel implementations due to its lightweight closures (every
+closure consists of two machine words).
 
 % We recommend abbrvnat bibliography style.
 \bibliographystyle{abbrvnat}
