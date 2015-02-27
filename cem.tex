@@ -68,7 +68,7 @@
   call-by-need lambda calculus of which we are aware.  The semantics
   of the shared environment are defined by a new abstract machine, based
   lazy variants of Krivine's call by name abstract machine.  Beyond simplicity,
-  the our approach enables explorations of the tradeoffs between flat and shared
+  our approach enables explorations of the tradeoffs between flat and shared
   environment structures for lazy languages.
 
 \end{abstract}
@@ -83,10 +83,10 @@ for call-by-need semantics with a single shared environment, which serves both
 as the environment for every closure and as the heap. 
 
 In this pearl, we focus only on the issue of implementation simplicity, leaving
-careful performance measurements for future work, although we believe that our
-approach could also lead to efficiency improvements. This frees us to focus on
-lambda calculus, and not worry about efficient implementation of machine
-literals and primitive operations. 
+performance measurements for future work, although we believe that our approach
+could also lead to efficiency improvements. This frees us to focus on lambda
+calculus, and not worry about efficient implementation of machine literals and
+primitive operations. 
 
 The core of the paper is a novel lazy Krivine machine, seen in
 Figure~\ref{fig:L}. Using this abstract machine, we present an x64 native code
@@ -140,10 +140,6 @@ data Term n where
 type ClosedTerm = Term Z
 \end{code}
 
-With these definitions, we complete the type for our \texttt{compileProgram}
-function, which we want only to take \texttt{ClosedTerm}, and generate a list
-of \texttt{BasicBlock}s.
-
 Instead of binding named variables, here a variable indexes the depth of its
 binding lambda with a natural number. For example $\lambda t.\lambda f.t$ in
 standard notation becomes $\lambda\lambda1$ in lambda calculus with deBruijn
@@ -156,6 +152,15 @@ closures~\cite{landin1964mechanical, curien1991abstract, jonesstg,
 biernacka2007concrete}. Closures combine an term with an environment, binding
 the free variables in the term to other closures. We follow this
 approach, but with a novel twist. 
+
+There are three standard approaches to evaluation of lambda expressions:
+call-by-value, call-by-name, and call-by-need. The three approaches can be
+summarized as follows: call-by-value evaluates arguments exactly once,
+call-by-name evaluates arguments term zero or more times, and call-by-need
+evaluates arguments at most once. In this paper we are concerned with
+implementing call-by-need. \footnote{There is some ambiguity in the literature
+regarding the use of the term \emph{lazy}. We will use the term to mean
+call-by-need.}
 
 \section{Environment Representation} \label{sec:env}
 
@@ -277,15 +282,14 @@ it is never formalized \cite{sestoft91analysis}.}
 
 \section{An Example}
 
-We now turn to visualizations of example executions to provide intuition for how
-the $L$ machine operates. Figure~\ref{fig:states} shows a portion of the
-execution trace during the evaluation of 
-$$(\lambda a.(\lambda b.b \; a) (\lambda c.c \; a)) ((\lambda i.i) (\lambda j.j))$$. 
-\input{figures/states}
-We can see each rule in effect in our visualization, and how it changes the
-state of the machine, directly. This should give the reader some intuition for
-how the machine operates, and how simple its rules are from a mechanical point
-of view. See the caption for a detailed description of state transitions. 
+We now turn to a visualization of an example execution to provide intuition for
+how the $L$ machine operates. Figure~\ref{fig:states} shows a portion of the
+execution trace during the evaluation of $$(\lambda a.(\lambda b.b \; a)
+(\lambda c.c \; a)) ((\lambda i.i) (\lambda j.j))$$.  \input{figures/states} We
+can see each rule in effect in our visualization, and how it changes the state
+of the machine, directly. This should give the reader some intuition for how the
+machine operates, and how simple its rules are from a mechanical point of view.
+See the caption for a detailed description of state transitions. 
 
 \section{Implementation}\label{sec:impl}
 
@@ -313,6 +317,12 @@ marker) and if it is, update the marker and continue with the current closure.
 If it is not an update marker, it is an argument closure, so we pop to extend
 our current environment with it and continue into the body of the current
 lambda.
+
+The state of the machine in the implementation is defined by the heap, the
+stack, and 4 registers: \texttt{rip} refers to the current term, \texttt{rax}
+holds the current environment pointer, \texttt{rsp} holds the current stack
+location, and \texttt{rbx} holds the next heap location. We also use
+\texttt{rbp} to check for termination, and \texttt{rcx} for temporary storage.
 
 \input{figures/impl}
 
