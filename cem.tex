@@ -153,14 +153,14 @@ biernacka2007concrete}. Closures combine an term with an environment, binding
 the free variables in the term to other closures. We follow this
 approach, but with a novel twist. 
 
-There are three standard approaches to evaluation of lambda expressions:
-call-by-value, call-by-name, and call-by-need. The three approaches can be
-summarized as follows: call-by-value evaluates arguments exactly once,
-call-by-name evaluates arguments term zero or more times, and call-by-need
-evaluates arguments at most once. In this paper we are concerned with
-implementing call-by-need. \footnote{There is some ambiguity in the literature
-regarding the use of the term \emph{lazy}. We will use the term to mean
-call-by-need.}
+There are three standard approaches to evaluation of lambda expressions to weak
+head normal form: call-by-value, call-by-name, and call-by-need. The three
+approaches can be summarized as follows: call-by-value evaluates arguments
+exactly once, call-by-name evaluates arguments term zero or more times, and
+call-by-need evaluates arguments at most once. In this paper we are concerned
+with implementing call-by-need. \footnote{There is some ambiguity in the
+literature regarding the use of the term \emph{lazy}. We will use the term to
+mean call-by-need.}
 
 \section{Environment Representation} \label{sec:env}
 
