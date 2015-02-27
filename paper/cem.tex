@@ -56,21 +56,19 @@
 \maketitle
 
 \begin{abstract}
-  Existing implementations of lazy evaluation use a \emph{flat}
-  representation of environments, storing the terms associated with
-  free variables in an array.  Combined with a heap, this structure
-  supports the shared intermediate results required by lazy
-  evaluation.  Here, we take an alternative approach, compiling
-  call-by-need lambda calculus directly to x64 assembly code.  By
-  using shared environments to ensure bound terms are evaluated only
-  once (a requirement of lazy evaluation), we achieve an
-  implementation simpler than any implementation of the
-  call-by-need lambda calculus of which we are aware. The semantics
-  of the shared environment are defined by a new abstract machine, based on
-  lazy variants of Krivine's call by name abstract machine. Beyond simplicity,
-  our approach enables explorations of the tradeoffs between flat and shared
-  environment structures for lazy languages.
-
+Existing implementations of lazy evaluation use a \emph{flat} representation
+of environments, storing the locations of closures associated with free
+variables in an array. Combined with a heap, this structure supports the
+shared intermediate results required by lazy evaluation.  Here, we take an
+alternative approach when compiling call-by-need lambda calculus directly to
+x64 assembly code. By using shared environments to ensure bound terms are
+evaluated at most once (a requirement of lazy evaluation), we achieve an
+implementation simpler than any implementation of the call-by-need lambda
+calculus of which we are aware. The semantics of the shared environment are
+defined by a new abstract machine, based on lazy variants of Krivine's call by
+name abstract machine. Beyond simplicity, our approach enables explorations of
+the tradeoffs between flat and shared environment structures for lazy
+languages.
 \end{abstract}
 
 \section{Introduction} \label{sec:intro}
@@ -354,7 +352,7 @@ modern hardware.
 
 Furthermore, we believe the $L$ machine could be a good target for abstraction
 thanks to its simplicity, following the approach of Van Horn et
-al.\cite{van2010abstracting}. For example, its straightforward heap structure
+al \cite{van2010abstracting}. For example, its straightforward heap structure
 could be amenable to abstraction, allowing for easier analysis of static heap
 properties.
 
