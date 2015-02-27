@@ -32,7 +32,7 @@ deBruijn e = db' [] e where
 parseExpr :: String -> Either Failure Expr 
 parseExpr s = either (Left . ParseFailure) Right $ parse term "" s where
   term :: Parsec String () Expr
-  term =  Lam <$> (char 'λ' *> var <* char '.') <^> term
+  term =  Lam <$> ((char 'λ' <|> char '\\') *> var <* char '.') <^> term
       <|> Var <$> var
       <|> char '(' ^> (foldl1 App <$> many1 (spaces *> term <* spaces)) <^ char ')'
       <|> char '{' ^> (lets <$> many (spaces *> binding <* spaces) <^> (char '}' ^> term))
