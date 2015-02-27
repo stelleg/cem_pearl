@@ -32,7 +32,7 @@ checkTermBB :: Label -> BasicBlock
 checkTermBB l = BB ("CheckTerm_"++l)
   ["cmp %rsp, %rbp"                                -- Check if stack is empty
   ,"jne CheckUpdate_"++ l]                         -- If not empty, check updates
-
+                                                   -- Else, terminate
 termBB :: Label -> BasicBlock
 termBB l = BB ("Term_"++ l)
   ["movq $str"++l++", %rsi"                        -- \
@@ -46,15 +46,15 @@ termBB l = BB ("Term_"++ l)
 checkUpdateBB :: Label -> BasicBlock
 checkUpdateBB l = BB ("CheckUpdate_"++ l)
   ["cmpq $0, (%rsp)"                               -- Check for update marker
-  ,"jne Take_"++ l]                                -- If not update, proceed to take
-
+  ,"jne Take_"++ l]                                -- If not update, take argument
+                                                   -- Else, perform update
 updateBB :: Label -> BasicBlock
 updateBB l = BB ("Update_"++ l)
   ["movq 8(%rsp), %rcx"                            -- \
-  ,"movq $CheckTerm_"++ l ++", (%rcx)"             --  Replace code pointer
+  ,"movq $"++ l ++", (%rcx)"                       --  Replace code pointer
   ,"movq %rax, 8(%rcx)"                            --  Replace env pointer
   ,"add $16, %rsp"                                 --  Pop update 
-  ,"jmp CheckTerm_"++ l]                           --  Continue with new stack
+  ,"jmp "++ l]                                     --  Continue with new stack
  
 takeBB :: Label -> BasicBlock
 takeBB l = BB ("Take_"++ l)

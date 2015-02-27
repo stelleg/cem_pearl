@@ -34,7 +34,7 @@ parseExpr s = either (Left . ParseFailure) Right $ parse term "" s where
   term :: Parsec String () Expr
   term =  Lam <$> (char 'λ' *> var <* char '.') <^> term
       <|> Var <$> var
-      <|> App <$> (char '(' *> term) <^> (term <* char ')')
+      <|> char '(' ^> (foldl1 App <$> many1 (spaces *> term <* spaces)) <^ char ')'
       <|> char '{' ^> (lets <$> many (spaces *> binding <* spaces) <^> (char '}' ^> term))
           where lets = flip $ foldr ($) 
                 binding = mylet <$> var <^> (char '=' ^> term)

@@ -95,10 +95,10 @@ checkUpdateBB l = BB ("CheckUpdate_"++ l)
 updateBB :: Label -> BasicBlock
 updateBB l = BB ("Update_"++ l)
   ["movq 8(%rsp), %rcx"                             -- \
-  ,"movq $CheckTerm_"++ l ++", (%rcx)"       --  Replace code pointer
+  ,"movq $"++ l ++", (%rcx)"       --  Replace code pointer
   ,"movq %rax, 8(%rcx)"                             --  Replace env pointer
   ,"add $16, %rsp"                                  --  Pop update 
-  ,"jmp CheckTerm_"++ l]                        --  Continue with new stack
+  ,"jmp "++ l]                        --  Continue with new stack
  
 takeBB :: Label -> BasicBlock
 takeBB l = BB ("Take_"++ l)

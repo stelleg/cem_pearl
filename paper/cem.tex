@@ -65,9 +65,9 @@
   using shared environments to ensure bound terms are evaluated only
   once (a requirement of lazy evaluation), we achieve an
   implementation simpler than any implementation of the
-  call-by-need lambda calculus of which we are aware.  The semantics
-  of the shared environment are defined by a new abstract machine, based
-  lazy variants of Krivine's call by name abstract machine.  Beyond simplicity,
+  call-by-need lambda calculus of which we are aware. The semantics
+  of the shared environment are defined by a new abstract machine, based on
+  lazy variants of Krivine's call by name abstract machine. Beyond simplicity,
   our approach enables explorations of the tradeoffs between flat and shared
   environment structures for lazy languages.
 
@@ -173,7 +173,7 @@ of that record are shared among multiple environments~\cite{appel1988optimizing,
 shao1994space}. For example, consider the following closed term: $$(\lambda
 x.(\lambda y.t) (\lambda z.t_1)) t_2$$ Assuming the term $t$ has both $x$ and
 $y$ as free variables, we must evaluate it in the environment binding both $x$
-and $y$.  Similarly, assuming $t'$ contains both $z$ and $x$ as free variables,
+and $y$.  Similarly, assuming $t_1$ contains both $z$ and $x$ as free variables,
 we must evaluate it in an environment containing bindings for both $x$ and $z$.
 Thus, we can represent the closures for $t$ and $t_1$ as $$t[x=t_2[\bullet],
 y=c]$$ and $$t_1[x=t_2[\bullet], z=c_1]$$ respectively. In a flat
@@ -327,17 +327,17 @@ location, and \texttt{rbx} holds the next heap location. We also use
 \input{figures/impl}
 
 \section{Discussion}
-The $L$ machine has one primary strength: $\beta$ reduction, $(\lambda x.b) e
-\rightarrow b[x/e]$, is performed in constant time, a property we don't believe
-any other call-by-need implementation can claim in general, due to construction
-of flat environments.
+The $L$ machine has one primary strength: closure creation always takes 
+constant time, a property we don't believe any other call-by-need implementation
+can claim in general, due to construction of flat environments.
 
 There is also a sense in which the $L$ machine is \emph{lazier} than flat
 environment implementations. Instead of spending time allocating a flat
-environment to optimize variable lookup, our implementation does the minimal
-amount of preparation work. This approach is a trade-off, as it comes with the
-previously mentioned cost of non-constant variable lookup time. It seems likely
-that an ideal implementation will combine the two techniques. 
+environment to optimize variable lookup (that may never get used), our
+implementation does the minimal amount of preparation work. This approach is a
+trade-off, as it comes with the previously mentioned cost of non-constant
+variable lookup time. It seems likely that an ideal implementation will combine
+the two techniques. 
 
 There are also many known improvements that can be directly applied to the $L$
 machine, as it is an implementation of a lazy Krivine machine. In particular,
