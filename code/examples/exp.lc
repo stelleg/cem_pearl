@@ -1,0 +1,4 @@
+{
+  three = λf.λx.(f (f (f x)))
+  iszero = λn.(n λx.λt.λf.f λt.λf.t)
+} (iszero (three three three three three))
