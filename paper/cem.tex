@@ -60,15 +60,13 @@ Existing implementations of lazy evaluation use a \emph{flat} representation
 of environments, storing the locations of closures associated with free
 variables in an array. Combined with a heap, this structure supports the
 shared intermediate results required by lazy evaluation.  Here, we take an
-alternative approach when compiling call-by-need lambda calculus directly to
-x64 assembly code. By using shared environments to ensure bound terms are
-evaluated at most once (a requirement of lazy evaluation), we achieve an
-implementation simpler than any implementation of the call-by-need lambda
-calculus of which we are aware. The semantics of the shared environment are
-defined by a new abstract machine, based on lazy variants of Krivine's call by
+alternative approach, compiling lambda terms to x64 assembly. By using
+\emph{shared} environments to implement sharing of intermediate results, we
+achieve an implementation simpler than any implementation of the call-by-need
+lambda calculus of which we are aware. The semantics of this approach are
+captured by a new abstract machine, based on lazy variants of Krivine's call by
 name abstract machine. Beyond simplicity, our approach enables explorations of
-the tradeoffs between flat and shared environment structures for lazy
-languages.
+the tradeoffs between flat and shared environment structures for lazy languages.
 \end{abstract}
 
 \section{Introduction} \label{sec:intro}
