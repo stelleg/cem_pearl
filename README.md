@@ -1,4 +1,4 @@
-% Shared environment call by need functional pearl
+# Cactus environment machine
 
 We implement call by need using shared environments. 
 
